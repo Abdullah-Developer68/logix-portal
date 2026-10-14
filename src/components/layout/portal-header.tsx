@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import { Logo } from "@/components/ui/logo";
 import { ButtonLink } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ShieldCheck, UserPlus, LogIn } from "lucide-react";
 
@@ -40,9 +39,6 @@ export function PortalHeader() {
       <div className="container-x flex h-16 items-center justify-between">
         <div className="flex items-center gap-3">
           <Logo />
-          <Badge variant="brand" dot className="hidden sm:inline-flex">
-            Internship Portal v1.0
-          </Badge>
         </div>
 
         {/* Desktop Nav */}
