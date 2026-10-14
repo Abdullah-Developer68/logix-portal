@@ -186,6 +186,19 @@
         "CI/CD",
         "Linux"
       ]
+    },
+    {
+      "id": "fld-1791986691695",
+      "name": "Cybersecurity & Infosec",
+      "code": "CYBER",
+      "podName": "Cybersecurity & Infosec Pod",
+      "description": "Specialized internship track in Cybersecurity & Infosec.",
+      "totalSeats": 20,
+      "filledSeats": 0,
+      "active": true,
+      "defaultSkills": [
+        "Cybersecurity & Infosec"
+      ]
     }
   ],
   "durations": [
@@ -974,6 +987,17 @@
     }
   ],
   "auditLogs": [
+    {
+      "id": "aud-1791986691695-bggu",
+      "timestamp": "2026-10-14T14:04:51.695Z",
+      "actorName": "Areeba Siddiqui (Program Director)",
+      "actorEmail": "admin@logix.dev",
+      "actorRole": "admin",
+      "action": "CREATED_FIELD",
+      "entityType": "Field",
+      "entityId": "Cybersecurity & Infosec",
+      "details": "Created internship department 'Cybersecurity & Infosec' (20 seats)."
+    },
     {
       "id": "aud-1",
       "timestamp": "2026-10-05T14:20:00Z",

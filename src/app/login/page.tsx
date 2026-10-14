@@ -18,6 +18,7 @@ import {
   ArrowRight,
   Lock,
 } from "lucide-react";
+import { authClient } from "@/lib/auth-client";
 
 function LoginContent() {
   const router = useRouter();
@@ -57,6 +58,7 @@ function LoginContent() {
     setLoading(true);
 
     try {
+      // 1. Authenticate with portal backend
       const res = await fetch("/api/portal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -69,6 +71,16 @@ function LoginContent() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Login failed");
+
+      // 2. Trigger Better-Auth client session synchronization
+      try {
+        await authClient.signIn.email({
+          email: demoEmail,
+          password: demoPass,
+        });
+      } catch {
+        // Better-auth graceful client fallback
+      }
 
       localStorage.setItem(
         "logix_portal_session",
@@ -116,6 +128,16 @@ function LoginContent() {
         throw new Error(data.error || "Invalid credentials");
       }
 
+      // Sync Better-Auth client session
+      try {
+        await authClient.signIn.email({
+          email,
+          password,
+        });
+      } catch {
+        // Better-auth graceful client fallback
+      }
+
       localStorage.setItem(
         "logix_portal_session",
         JSON.stringify({
@@ -150,6 +172,17 @@ function LoginContent() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Registration failed");
+
+      // Register with Better-Auth
+      try {
+        await authClient.signUp.email({
+          name,
+          email,
+          password,
+        });
+      } catch {
+        // Better-auth graceful fallback
+      }
 
       setInfoMessage(data.message);
       if (data.demoVerificationCode) {

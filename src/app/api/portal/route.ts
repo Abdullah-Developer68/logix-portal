@@ -22,6 +22,8 @@ import type {
   LeaveStatus,
   UserRole,
 } from "@/lib/types";
+import { auth, hasPermission } from "@/lib/auth";
+import { supabaseDb } from "@/lib/supabase-db";
 
 export async function GET(request: NextRequest) {
   try {
@@ -102,11 +104,48 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const action = body.action as string;
-    const actorName = sanitizeText(body.actorName || "System User");
-    const actorEmail = sanitizeText(body.actorEmail || "system@logix.dev");
-    const actorRole = (body.actorRole || "admin") as UserRole;
-
     const db = readDb();
+
+    // 1. Resolve Session and Verified Role from Better-Auth / Request
+    let actorRole: UserRole = (body.actorRole || "intern") as UserRole;
+    let actorEmail: string = sanitizeText(body.actorEmail || "");
+    let actorName: string = sanitizeText(body.actorName || "System User");
+
+    // Check Better-Auth server session first
+    try {
+      const session = await auth.api.getSession({ headers: request.headers });
+      if (session?.user) {
+        actorRole = (session.user.role as UserRole) || actorRole;
+        actorEmail = session.user.email || actorEmail;
+        actorName = session.user.name || actorName;
+      }
+    } catch {
+      // Better-auth session check fallback
+    }
+
+    // Verify role against database user record to prevent role spoofing
+    if (actorEmail && db) {
+      const dbUser = db.users.find(
+        (u) => u.email.toLowerCase() === actorEmail.toLowerCase(),
+      );
+      if (dbUser) {
+        actorRole = dbUser.role;
+        actorName = dbUser.name || actorName;
+      }
+    }
+
+    // Server-Side RBAC Enforcement Helper
+    const requirePerm = (permission: string) => {
+      if (!hasPermission(actorRole, permission)) {
+        return NextResponse.json(
+          {
+            error: `Access Denied (403 Forbidden): Role '${actorRole}' is not authorized to perform action requiring '${permission}' permission.`,
+          },
+          { status: 403 },
+        );
+      }
+      return null;
+    };
 
     switch (action) {
       // ==========================================================
@@ -156,6 +195,13 @@ export async function POST(request: NextRequest) {
           entityId: user.id,
           details: `${user.name} (${user.role}) signed in to the portal.`,
         });
+        supabaseDb.logAudit(
+          user.name,
+          "USER_LOGIN",
+          "Auth",
+          user.id,
+          `${user.name} (${user.role}) signed in.`,
+        );
         writeDb(db);
 
         return NextResponse.json({
@@ -510,6 +556,9 @@ export async function POST(request: NextRequest) {
       }
 
       case "update_application_status": {
+        const permErr = requirePerm("manage_interns");
+        if (permErr) return permErr;
+
         const id = sanitizeText(body.id);
         const applicationStatus = body.applicationStatus as ApplicationStatus;
         const mentorId = sanitizeText(body.mentorId);
@@ -584,6 +633,9 @@ export async function POST(request: NextRequest) {
       // 3.3 INTERN RECORD MANAGEMENT (ADMIN)
       // ==========================================================
       case "save_intern_record": {
+        const permErr = requirePerm("manage_interns");
+        if (permErr) return permErr;
+
         const id = sanitizeText(body.id);
         const fullName = sanitizeText(body.fullName);
         const fatherName = sanitizeText(body.fatherName);
@@ -737,6 +789,9 @@ export async function POST(request: NextRequest) {
       }
 
       case "archive_intern_record": {
+        const permErr = requirePerm("manage_interns");
+        if (permErr) return permErr;
+
         const id = sanitizeText(body.id);
         const intern = db.interns.find((i) => i.id === id);
         if (!intern) {
@@ -758,6 +813,9 @@ export async function POST(request: NextRequest) {
       }
 
       case "delete_intern_record": {
+        const permErr = requirePerm("delete_interns");
+        if (permErr) return permErr;
+
         const id = sanitizeText(body.id);
         const idx = db.interns.findIndex((i) => i.id === id);
         if (idx === -1) {
@@ -778,6 +836,9 @@ export async function POST(request: NextRequest) {
       }
 
       case "bulk_import_interns": {
+        const permErr = requirePerm("manage_interns");
+        if (permErr) return permErr;
+
         const rows = Array.isArray(body.rows) ? body.rows : [];
         if (rows.length === 0) {
           return NextResponse.json(
@@ -860,6 +921,9 @@ export async function POST(request: NextRequest) {
       // 3.4 FIELD, DURATION & BATCH MANAGEMENT
       // ==========================================================
       case "save_field": {
+        const permErr = requirePerm("manage_departments");
+        if (permErr) return permErr;
+
         const id = sanitizeText(body.id);
         const name = sanitizeText(body.name);
         const code = sanitizeText(body.code).toUpperCase();
@@ -907,6 +971,9 @@ export async function POST(request: NextRequest) {
       }
 
       case "toggle_field": {
+        const permErr = requirePerm("manage_departments");
+        if (permErr) return permErr;
+
         const id = sanitizeText(body.id);
         const field = db.fields.find((f) => f.id === id);
         if (field) {
@@ -926,6 +993,9 @@ export async function POST(request: NextRequest) {
       }
 
       case "save_duration": {
+        const permErr = requirePerm("manage_durations");
+        if (permErr) return permErr;
+
         const months = Number(body.months);
         const label = sanitizeText(body.label) || `${months} Months Track`;
         const description = sanitizeText(body.description);
@@ -966,6 +1036,9 @@ export async function POST(request: NextRequest) {
       }
 
       case "toggle_duration": {
+        const permErr = requirePerm("manage_durations");
+        if (permErr) return permErr;
+
         const id = sanitizeText(body.id);
         const dur = db.durations.find((d) => d.id === id);
         if (dur) {
@@ -976,6 +1049,9 @@ export async function POST(request: NextRequest) {
       }
 
       case "save_batch": {
+        const permErr = requirePerm("manage_batches");
+        if (permErr) return permErr;
+
         const name = sanitizeText(body.name);
         const code = sanitizeText(body.code).toUpperCase();
         const startDate = sanitizeText(body.startDate);
@@ -1018,6 +1094,9 @@ export async function POST(request: NextRequest) {
       // 3.5 TASK AND PROGRESS TRACKING
       // ==========================================================
       case "assign_task": {
+        const permErr = requirePerm("assign_tasks");
+        if (permErr) return permErr;
+
         const title = sanitizeText(body.title);
         const description = sanitizeText(body.description);
         const internRecordId = sanitizeText(body.internRecordId);
@@ -1087,6 +1166,9 @@ export async function POST(request: NextRequest) {
       }
 
       case "submit_task": {
+        const permErr = requirePerm("submit_task");
+        if (permErr) return permErr;
+
         const taskId = sanitizeText(body.taskId);
         const submissionLink = sanitizeText(body.submissionLink);
         const submissionFileName = sanitizeText(body.submissionFileName);
@@ -1125,6 +1207,9 @@ export async function POST(request: NextRequest) {
       }
 
       case "review_task": {
+        const permErr = requirePerm("review_tasks");
+        if (permErr) return permErr;
+
         const taskId = sanitizeText(body.taskId);
         const status = body.status as TaskStatus;
         const mentorComments = sanitizeText(body.mentorComments);
@@ -1167,6 +1252,9 @@ export async function POST(request: NextRequest) {
       // 3.6 ATTENDANCE & LEAVE MANAGEMENT
       // ==========================================================
       case "mark_attendance": {
+        const permErr = requirePerm("mark_attendance");
+        if (permErr) return permErr;
+
         const internRecordId = sanitizeText(body.internRecordId);
         const date =
           sanitizeText(body.date) || new Date().toISOString().split("T")[0];
@@ -1207,6 +1295,9 @@ export async function POST(request: NextRequest) {
       }
 
       case "request_leave": {
+        const permErr = requirePerm("request_leave");
+        if (permErr) return permErr;
+
         const internRecordId = sanitizeText(body.internRecordId);
         const startDate = sanitizeText(body.startDate);
         const endDate = sanitizeText(body.endDate) || startDate;
@@ -1245,6 +1336,9 @@ export async function POST(request: NextRequest) {
       }
 
       case "review_leave": {
+        const permErr = requirePerm("review_leaves");
+        if (permErr) return permErr;
+
         const leaveId = sanitizeText(body.leaveId);
         const status = body.status as LeaveStatus;
         const leave = db.leaves.find((l) => l.id === leaveId);
@@ -1271,6 +1365,9 @@ export async function POST(request: NextRequest) {
       // 3.7 EVALUATION AND FEEDBACK
       // ==========================================================
       case "submit_evaluation": {
+        const permErr = requirePerm("submit_evaluation");
+        if (permErr) return permErr;
+
         const internRecordId = sanitizeText(body.internRecordId);
         const technicalSkills = Math.min(25, Math.max(0, Number(body.technicalSkills) || 0));
         const punctuality = Math.min(25, Math.max(0, Number(body.punctuality) || 0));
@@ -1348,6 +1445,9 @@ export async function POST(request: NextRequest) {
       }
 
       case "submit_intern_feedback": {
+        const permErr = requirePerm("submit_feedback");
+        if (permErr) return permErr;
+
         const internRecordId = sanitizeText(body.internRecordId);
         const rating = Math.min(5, Math.max(1, Number(body.rating) || 5));
         const comments = sanitizeText(body.comments);
@@ -1394,6 +1494,9 @@ export async function POST(request: NextRequest) {
       // 3.8 CERTIFICATE MANAGEMENT
       // ==========================================================
       case "issue_certificate": {
+        const permErr = requirePerm("issue_certificates");
+        if (permErr) return permErr;
+
         const internRecordId = sanitizeText(body.internRecordId);
         const intern = db.interns.find((i) => i.id === internRecordId);
         if (!intern) {
@@ -1529,6 +1632,9 @@ export async function POST(request: NextRequest) {
       }
 
       case "revoke_certificate": {
+        const permErr = requirePerm("revoke_certificates");
+        if (permErr) return permErr;
+
         const certificateId = sanitizeText(body.certificateId);
         const reason =
           sanitizeText(body.reason) || "Revoked by administrative action.";
@@ -1577,6 +1683,9 @@ export async function POST(request: NextRequest) {
       }
 
       case "post_announcement": {
+        const permErr = requirePerm("post_announcements");
+        if (permErr) return permErr;
+
         const title = sanitizeText(body.title);
         const content = sanitizeText(body.content);
         const targetAudience =
@@ -1629,6 +1738,9 @@ export async function POST(request: NextRequest) {
       // 4. DATABASE BACKUP
       // ==========================================================
       case "create_backup": {
+        const permErr = requirePerm("manage_interns");
+        if (permErr) return permErr;
+
         const label = sanitizeText(body.label);
         const snapshot = createDatabaseBackup(db, label, actorName);
         appendAuditLog(db, {

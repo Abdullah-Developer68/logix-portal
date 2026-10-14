@@ -9,9 +9,11 @@
     "lint": "eslint",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
+    "db:seed": "tsx src/scripts/seed-supabase.ts",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "better-auth": "^1.7.7",
     "drizzle-orm": "^0.45.4",
     "framer-motion": "^14.0.0",
     "lucide-react": "^1.55.0",
@@ -22,6 +24,7 @@
     "react-dom": "19.3.0"
   },
   "devDependencies": {
+    "@better-auth/cli": "^1.4.22",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
     "@types/nodemailer": "^8.0.2",

@@ -124,10 +124,20 @@ export default function PortalWorkspacePage() {
   ): Promise<boolean> => {
     setToast(null);
     try {
+      const enrichedPayload = {
+        actorName: session.name,
+        actorEmail: session.email,
+        actorRole: session.role,
+        ...payload,
+      };
+
       const res = await fetch("/api/portal", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        headers: {
+          "Content-Type": "application/json",
+          "x-portal-role": session.role,
+        },
+        body: JSON.stringify(enrichedPayload),
       });
       const data = await res.json();
       if (!res.ok) {

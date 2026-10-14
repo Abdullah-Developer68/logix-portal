@@ -13,3 +13,4 @@ export async function getUsers() {
 }
 
 export { db, client, users };
+
