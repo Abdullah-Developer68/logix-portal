@@ -286,7 +286,7 @@ export default function ApplyPage() {
                   size="lg"
                   className="w-full sm:w-auto"
                 >
-                  Return to Portal Home
+                  Return to Portal Dashboard
                 </ButtonLink>
               </div>
             </Card>

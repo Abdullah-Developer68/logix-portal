@@ -253,7 +253,7 @@ export function InternDashboard({
       {/* Sub-Navigation Tabs */}
       <div className="flex flex-wrap gap-2 border-b border-border pb-3">
         {[
-          { id: "overview", label: "Overview & Profile" },
+          { id: "overview", label: "My Profile & Placement" },
           { id: "tasks", label: `My Tasks (${myTasks.length})` },
           { id: "attendance", label: "Attendance & Leave" },
           { id: "evaluation", label: "Evaluation & Feedback" },

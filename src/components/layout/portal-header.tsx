@@ -8,13 +8,12 @@ import { ButtonLink } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { ShieldCheck, LayoutDashboard, UserPlus, LogIn } from "lucide-react";
+import { ShieldCheck, UserPlus, LogIn } from "lucide-react";
 
 const links = [
-  { href: "/", label: "Overview" },
+  { href: "/", label: "Portal Workspace" },
   { href: "/apply", label: "Apply for Internship" },
   { href: "/verify", label: "Verify Certificate" },
-  { href: "/portal", label: "Portal Workspace" },
 ];
 
 export function PortalHeader() {
@@ -53,8 +52,9 @@ export function PortalHeader() {
         >
           {links.map((l) => {
             const isActive =
-              pathname === l.href ||
-              (l.href !== "/" && pathname.startsWith(l.href));
+              l.href === "/"
+                ? pathname === "/" || pathname === "/portal"
+                : pathname.startsWith(l.href);
             return (
               <Link
                 key={l.href}
@@ -82,10 +82,6 @@ export function PortalHeader() {
           <ButtonLink href="/apply" size="sm" variant="brand" className="font-semibold">
             <UserPlus className="size-3.5" />
             Apply Now
-          </ButtonLink>
-          <ButtonLink href="/portal" size="sm" variant="default">
-            <LayoutDashboard className="size-3.5" />
-            Dashboard
           </ButtonLink>
         </div>
 
@@ -168,14 +164,6 @@ export function PortalHeader() {
               onClick={() => setMobileMenuOpen(false)}
             >
               Apply for Internship
-            </ButtonLink>
-            <ButtonLink
-              href="/portal"
-              variant="default"
-              className="w-full justify-center"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Open Portal Dashboard
             </ButtonLink>
           </div>
         </div>
