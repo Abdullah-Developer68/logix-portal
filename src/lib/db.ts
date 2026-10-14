@@ -15,22 +15,29 @@ const DATA_DIR = process.env.VERCEL
 const DB_FILE = path.join(DATA_DIR, "portal-db.json");
 const BACKUP_DIR = path.join(DATA_DIR, "backups");
 
-export function hashPassword(password: string): string {
-  const salt = "logix_portal_salt_2026";
+export function hashPassword(password: string, customSalt?: string): string {
+  const salt = customSalt || crypto.randomBytes(16).toString("hex");
   const derived = crypto.scryptSync(password, salt, 32).toString("hex");
   return `scrypt:${salt}:${derived}`;
 }
 
 export function verifyPassword(password: string, storedHash: string): boolean {
-  const computed = hashPassword(password);
-  try {
-    return crypto.timingSafeEqual(
-      Buffer.from(computed),
-      Buffer.from(storedHash),
-    );
-  } catch {
-    return false;
+  if (!password || !storedHash) return false;
+  const parts = storedHash.split(":");
+  if (parts.length === 3 && parts[0] === "scrypt") {
+    const salt = parts[1];
+    const expected = parts[2];
+    const derived = crypto.scryptSync(password, salt, 32).toString("hex");
+    try {
+      return crypto.timingSafeEqual(
+        Buffer.from(derived, "hex"),
+        Buffer.from(expected, "hex"),
+      );
+    } catch {
+      return false;
+    }
   }
+  return false;
 }
 
 export function sanitizeText(input: unknown): string {

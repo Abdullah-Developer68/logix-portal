@@ -74,7 +74,7 @@ export default function ApplyPage() {
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetch("/api/portal")
+    fetch("/api/portal?meta=public")
       .then((r) => r.json())
       .then((data) => {
         if (data.fields) {

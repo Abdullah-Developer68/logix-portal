@@ -1,6 +1,7 @@
 -- ============================================================================
 -- LOGIX INTERNSHIP MANAGEMENT PORTAL - SUPABASE POSTGRESQL SCHEMA (v1.0)
 -- Matches Drizzle ORM Schema & Better-Auth Specifications
+-- With Complete Referential Integrity, Foreign Keys & Cascading Deletes
 -- ============================================================================
 
 -- 1. BETTER-AUTH AUTHENTICATION TABLES
@@ -95,14 +96,14 @@ CREATE TABLE IF NOT EXISTS "interns" (
   degree TEXT,
   semester VARCHAR(32),
   cgpa VARCHAR(32),
-  department_id VARCHAR(64),
+  department_id VARCHAR(64) REFERENCES "departments"(id) ON DELETE SET NULL,
   department_name TEXT,
-  batch_id VARCHAR(64),
+  batch_id VARCHAR(64) REFERENCES "batches"(id) ON DELETE SET NULL,
   batch_name TEXT,
   duration VARCHAR(64) NOT NULL,
   start_date VARCHAR(32) NOT NULL,
   end_date VARCHAR(32) NOT NULL,
-  mentor_id TEXT,
+  mentor_id TEXT REFERENCES "user"(id) ON DELETE SET NULL,
   mentor_name TEXT,
   status VARCHAR(32) NOT NULL DEFAULT 'Applied', -- 'Applied', 'Active', 'Completed', 'Terminated', 'Dropped'
   progress INTEGER DEFAULT 0,
@@ -121,9 +122,9 @@ CREATE TABLE IF NOT EXISTS "tasks" (
   id VARCHAR(64) PRIMARY KEY,
   title TEXT NOT NULL,
   description TEXT NOT NULL,
-  department_id VARCHAR(64),
-  intern_id VARCHAR(64),
-  mentor_id TEXT,
+  department_id VARCHAR(64) REFERENCES "departments"(id) ON DELETE SET NULL,
+  intern_id VARCHAR(64) REFERENCES "interns"(id) ON DELETE CASCADE,
+  mentor_id TEXT REFERENCES "user"(id) ON DELETE SET NULL,
   mentor_name TEXT,
   deadline VARCHAR(32) NOT NULL,
   attachment_url TEXT,
@@ -138,8 +139,8 @@ CREATE TABLE IF NOT EXISTS "tasks" (
 
 CREATE TABLE IF NOT EXISTS "evaluations" (
   id VARCHAR(64) PRIMARY KEY,
-  intern_id VARCHAR(64) NOT NULL,
-  mentor_id TEXT,
+  intern_id VARCHAR(64) NOT NULL REFERENCES "interns"(id) ON DELETE CASCADE,
+  mentor_id TEXT REFERENCES "user"(id) ON DELETE SET NULL,
   mentor_name TEXT,
   technical_score INTEGER NOT NULL DEFAULT 0,
   punctuality_score INTEGER NOT NULL DEFAULT 0,
@@ -153,7 +154,7 @@ CREATE TABLE IF NOT EXISTS "evaluations" (
 
 CREATE TABLE IF NOT EXISTS "intern_feedback" (
   id VARCHAR(64) PRIMARY KEY,
-  intern_id VARCHAR(64) NOT NULL,
+  intern_id VARCHAR(64) NOT NULL REFERENCES "interns"(id) ON DELETE CASCADE,
   rating INTEGER NOT NULL DEFAULT 5,
   mentor_helpfulness INTEGER NOT NULL DEFAULT 5,
   project_relevance INTEGER NOT NULL DEFAULT 5,
@@ -163,7 +164,7 @@ CREATE TABLE IF NOT EXISTS "intern_feedback" (
 
 CREATE TABLE IF NOT EXISTS "attendance" (
   id VARCHAR(64) PRIMARY KEY,
-  intern_id VARCHAR(64) NOT NULL,
+  intern_id VARCHAR(64) NOT NULL REFERENCES "interns"(id) ON DELETE CASCADE,
   date VARCHAR(32) NOT NULL,
   status VARCHAR(32) NOT NULL DEFAULT 'Present', -- 'Present', 'Late', 'Absent', 'Leave'
   check_in_time VARCHAR(32),
@@ -173,7 +174,7 @@ CREATE TABLE IF NOT EXISTS "attendance" (
 
 CREATE TABLE IF NOT EXISTS "leave_requests" (
   id VARCHAR(64) PRIMARY KEY,
-  intern_id VARCHAR(64) NOT NULL,
+  intern_id VARCHAR(64) NOT NULL REFERENCES "interns"(id) ON DELETE CASCADE,
   start_date VARCHAR(32) NOT NULL,
   end_date VARCHAR(32) NOT NULL,
   reason TEXT NOT NULL,
@@ -185,7 +186,7 @@ CREATE TABLE IF NOT EXISTS "leave_requests" (
 
 CREATE TABLE IF NOT EXISTS "certificates" (
   id VARCHAR(64) PRIMARY KEY,
-  intern_id VARCHAR(64) NOT NULL,
+  intern_id VARCHAR(64) NOT NULL REFERENCES "interns"(id) ON DELETE CASCADE,
   intern_name TEXT NOT NULL,
   field TEXT NOT NULL,
   duration TEXT NOT NULL,
@@ -224,7 +225,13 @@ CREATE TABLE IF NOT EXISTS "audit_logs" (
 -- INDEXES FOR OPTIMAL QUERY PERFORMANCE
 CREATE INDEX IF NOT EXISTS idx_interns_status ON "interns"(status);
 CREATE INDEX IF NOT EXISTS idx_interns_dept ON "interns"(department_id);
+CREATE INDEX IF NOT EXISTS idx_interns_email ON "interns"(email);
 CREATE INDEX IF NOT EXISTS idx_tasks_intern ON "tasks"(intern_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON "tasks"(status);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_attendance_intern_date ON "attendance"(intern_id, date);
 CREATE INDEX IF NOT EXISTS idx_attendance_intern ON "attendance"(intern_id);
+CREATE INDEX IF NOT EXISTS idx_leaves_intern ON "leave_requests"(intern_id);
+CREATE INDEX IF NOT EXISTS idx_evaluations_intern ON "evaluations"(intern_id);
 CREATE INDEX IF NOT EXISTS idx_cert_status ON "certificates"(status);
+CREATE INDEX IF NOT EXISTS idx_cert_intern ON "certificates"(intern_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON "audit_logs"(created_at);

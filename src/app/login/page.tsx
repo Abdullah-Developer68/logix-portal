@@ -89,6 +89,9 @@ function LoginContent() {
           loginTime: Date.now(),
         }),
       );
+      if (data.token) {
+        localStorage.setItem("logix_portal_token", data.token);
+      }
       router.push("/portal");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
@@ -145,6 +148,9 @@ function LoginContent() {
           loginTime: Date.now(),
         }),
       );
+      if (data.token) {
+        localStorage.setItem("logix_portal_token", data.token);
+      }
       router.push("/portal");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Authentication failed");
@@ -222,6 +228,9 @@ function LoginContent() {
           loginTime: Date.now(),
         }),
       );
+      if (data.token) {
+        localStorage.setItem("logix_portal_token", data.token);
+      }
       router.push("/portal");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Verification failed");

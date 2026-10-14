@@ -8,7 +8,7 @@
       "name": "Areeba Siddiqui (Program Director)",
       "emailVerified": true,
       "createdAt": "2026-01-10T09:00:00Z",
-      "lastLoginAt": "2026-10-13T05:00:00Z"
+      "lastLoginAt": "2026-10-14T16:33:19.595Z"
     },
     {
       "id": "usr-mentor-1",
@@ -19,7 +19,7 @@
       "emailVerified": true,
       "mentorId": "mnt-1",
       "createdAt": "2026-01-15T10:00:00Z",
-      "lastLoginAt": "2026-10-12T16:30:00Z"
+      "lastLoginAt": "2026-10-14T16:33:19.696Z"
     },
     {
       "id": "usr-mentor-2",
@@ -40,6 +40,17 @@
       "emailVerified": true,
       "mentorId": "mnt-3",
       "createdAt": "2026-02-05T10:00:00Z"
+    },
+    {
+      "id": "usr-intern-demo",
+      "email": "intern@logix.dev",
+      "passwordHash": "scrypt:logix_portal_salt_2026:351ad06e41ac9f5c598cc18c114e8e1584029bcdd3cab6f1d5bf424b7de45d37",
+      "role": "intern",
+      "name": "Hamza Ahmed",
+      "emailVerified": true,
+      "internRecordId": "int-1",
+      "createdAt": "2026-07-01T08:00:00Z",
+      "lastLoginAt": "2026-10-14T16:33:19.636Z"
     },
     {
       "id": "usr-intern-1",
@@ -920,6 +931,66 @@
   ],
   "notifications": [
     {
+      "id": "ntf-1791995599601-ht5p",
+      "recipientRole": "all",
+      "title": "Announcement: Test Security Announcement",
+      "message": "Automated security test payload.",
+      "category": "announcement",
+      "read": false,
+      "emailDispatched": true,
+      "createdAt": "2026-10-14T16:33:19.601Z"
+    },
+    {
+      "id": "ntf-1791995521983-90ke",
+      "recipientRole": "all",
+      "title": "Announcement: Test Security Announcement",
+      "message": "Automated security test payload.",
+      "category": "announcement",
+      "read": false,
+      "emailDispatched": true,
+      "createdAt": "2026-10-14T16:32:01.983Z"
+    },
+    {
+      "id": "ntf-1791995502063-6sce",
+      "recipientRole": "all",
+      "title": "Announcement: Test Security Announcement",
+      "message": "Automated security test payload.",
+      "category": "announcement",
+      "read": false,
+      "emailDispatched": true,
+      "createdAt": "2026-10-14T16:31:42.063Z"
+    },
+    {
+      "id": "ntf-1791995480726-dbcv",
+      "recipientRole": "all",
+      "title": "Announcement: Test Security Announcement",
+      "message": "Automated security test payload.",
+      "category": "announcement",
+      "read": false,
+      "emailDispatched": true,
+      "createdAt": "2026-10-14T16:31:20.726Z"
+    },
+    {
+      "id": "ntf-1791995163727-zjfm",
+      "recipientRole": "all",
+      "title": "Announcement: Test Security Announcement",
+      "message": "Automated security test payload.",
+      "category": "announcement",
+      "read": false,
+      "emailDispatched": true,
+      "createdAt": "2026-10-14T16:26:03.727Z"
+    },
+    {
+      "id": "ntf-1791995108829-2k1n",
+      "recipientRole": "all",
+      "title": "Announcement: Test Security Announcement",
+      "message": "Automated security test payload.",
+      "category": "announcement",
+      "read": false,
+      "emailDispatched": true,
+      "createdAt": "2026-10-14T16:25:08.829Z"
+    },
+    {
       "id": "ntf-1",
       "recipientRole": "intern",
       "recipientEmail": "hamza.ahmed@student.edu.pk",
@@ -966,6 +1037,66 @@
   ],
   "announcements": [
     {
+      "id": "ann-1791995599601",
+      "title": "Test Security Announcement",
+      "content": "Automated security test payload.",
+      "targetAudience": "All Interns",
+      "priority": "Normal",
+      "authorName": "Areeba Siddiqui (Program Director)",
+      "authorRole": "admin",
+      "createdAt": "2026-10-14T16:33:19.601Z"
+    },
+    {
+      "id": "ann-1791995521983",
+      "title": "Test Security Announcement",
+      "content": "Automated security test payload.",
+      "targetAudience": "All Interns",
+      "priority": "Normal",
+      "authorName": "Areeba Siddiqui (Program Director)",
+      "authorRole": "admin",
+      "createdAt": "2026-10-14T16:32:01.983Z"
+    },
+    {
+      "id": "ann-1791995502063",
+      "title": "Test Security Announcement",
+      "content": "Automated security test payload.",
+      "targetAudience": "All Interns",
+      "priority": "Normal",
+      "authorName": "Areeba Siddiqui (Program Director)",
+      "authorRole": "admin",
+      "createdAt": "2026-10-14T16:31:42.063Z"
+    },
+    {
+      "id": "ann-1791995480726",
+      "title": "Test Security Announcement",
+      "content": "Automated security test payload.",
+      "targetAudience": "All Interns",
+      "priority": "Normal",
+      "authorName": "Areeba Siddiqui (Program Director)",
+      "authorRole": "admin",
+      "createdAt": "2026-10-14T16:31:20.726Z"
+    },
+    {
+      "id": "ann-1791995163727",
+      "title": "Test Security Announcement",
+      "content": "Automated security test payload.",
+      "targetAudience": "All Interns",
+      "priority": "Normal",
+      "authorName": "Areeba Siddiqui (Program Director)",
+      "authorRole": "admin",
+      "createdAt": "2026-10-14T16:26:03.727Z"
+    },
+    {
+      "id": "ann-1791995108828",
+      "title": "Test Security Announcement",
+      "content": "Automated security test payload.",
+      "targetAudience": "All Interns",
+      "priority": "Normal",
+      "authorName": "Areeba Siddiqui (Program Director)",
+      "authorRole": "admin",
+      "createdAt": "2026-10-14T16:25:08.828Z"
+    },
+    {
       "id": "ann-1",
       "title": "Winter 2026 Batch Applications & Onboarding Schedule",
       "content": "Onboarding for the Winter 2026 Cohort begins November 1, 2026. All active interns in the Autumn 2026 Batch should ensure mid-term task submissions are uploaded by October 20.",
@@ -987,6 +1118,215 @@
     }
   ],
   "auditLogs": [
+    {
+      "id": "aud-1791995599696-dor8",
+      "timestamp": "2026-10-14T16:33:19.696Z",
+      "actorName": "Zainab Tariq (Principal Architect)",
+      "actorEmail": "mentor@logix.dev",
+      "actorRole": "mentor",
+      "action": "USER_LOGIN",
+      "entityType": "Auth",
+      "entityId": "usr-mentor-1",
+      "details": "Zainab Tariq (Principal Architect) (mentor) signed in to the portal."
+    },
+    {
+      "id": "aud-1791995599636-gm2u",
+      "timestamp": "2026-10-14T16:33:19.636Z",
+      "actorName": "Hamza Ahmed",
+      "actorEmail": "intern@logix.dev",
+      "actorRole": "intern",
+      "action": "USER_LOGIN",
+      "entityType": "Auth",
+      "entityId": "usr-intern-demo",
+      "details": "Hamza Ahmed (intern) signed in to the portal."
+    },
+    {
+      "id": "aud-1791995599601-1k4b",
+      "timestamp": "2026-10-14T16:33:19.601Z",
+      "actorName": "Areeba Siddiqui (Program Director)",
+      "actorEmail": "admin@logix.dev",
+      "actorRole": "admin",
+      "action": "POSTED_ANNOUNCEMENT",
+      "entityType": "Announcement",
+      "entityId": "ann-1791995599601",
+      "details": "Posted announcement 'Test Security Announcement' to All Interns."
+    },
+    {
+      "id": "aud-1791995599595-xeef",
+      "timestamp": "2026-10-14T16:33:19.595Z",
+      "actorName": "Areeba Siddiqui (Program Director)",
+      "actorEmail": "admin@logix.dev",
+      "actorRole": "admin",
+      "action": "USER_LOGIN",
+      "entityType": "Auth",
+      "entityId": "usr-admin-1",
+      "details": "Areeba Siddiqui (Program Director) (admin) signed in to the portal."
+    },
+    {
+      "id": "aud-1791995522085-7uhr",
+      "timestamp": "2026-10-14T16:32:02.085Z",
+      "actorName": "Zainab Tariq (Principal Architect)",
+      "actorEmail": "mentor@logix.dev",
+      "actorRole": "mentor",
+      "action": "USER_LOGIN",
+      "entityType": "Auth",
+      "entityId": "usr-mentor-1",
+      "details": "Zainab Tariq (Principal Architect) (mentor) signed in to the portal."
+    },
+    {
+      "id": "aud-1791995522025-x4mw",
+      "timestamp": "2026-10-14T16:32:02.025Z",
+      "actorName": "Hamza Ahmed",
+      "actorEmail": "intern@logix.dev",
+      "actorRole": "intern",
+      "action": "USER_LOGIN",
+      "entityType": "Auth",
+      "entityId": "usr-intern-demo",
+      "details": "Hamza Ahmed (intern) signed in to the portal."
+    },
+    {
+      "id": "aud-1791995521983-4alq",
+      "timestamp": "2026-10-14T16:32:01.983Z",
+      "actorName": "Areeba Siddiqui (Program Director)",
+      "actorEmail": "admin@logix.dev",
+      "actorRole": "admin",
+      "action": "POSTED_ANNOUNCEMENT",
+      "entityType": "Announcement",
+      "entityId": "ann-1791995521983",
+      "details": "Posted announcement 'Test Security Announcement' to All Interns."
+    },
+    {
+      "id": "aud-1791995521975-b3lw",
+      "timestamp": "2026-10-14T16:32:01.975Z",
+      "actorName": "Areeba Siddiqui (Program Director)",
+      "actorEmail": "admin@logix.dev",
+      "actorRole": "admin",
+      "action": "USER_LOGIN",
+      "entityType": "Auth",
+      "entityId": "usr-admin-1",
+      "details": "Areeba Siddiqui (Program Director) (admin) signed in to the portal."
+    },
+    {
+      "id": "aud-1791995502152-tjjq",
+      "timestamp": "2026-10-14T16:31:42.152Z",
+      "actorName": "Zainab Tariq (Principal Architect)",
+      "actorEmail": "mentor@logix.dev",
+      "actorRole": "mentor",
+      "action": "USER_LOGIN",
+      "entityType": "Auth",
+      "entityId": "usr-mentor-1",
+      "details": "Zainab Tariq (Principal Architect) (mentor) signed in to the portal."
+    },
+    {
+      "id": "aud-1791995502101-559g",
+      "timestamp": "2026-10-14T16:31:42.101Z",
+      "actorName": "Hamza Ahmed",
+      "actorEmail": "intern@logix.dev",
+      "actorRole": "intern",
+      "action": "USER_LOGIN",
+      "entityType": "Auth",
+      "entityId": "usr-intern-demo",
+      "details": "Hamza Ahmed (intern) signed in to the portal."
+    },
+    {
+      "id": "aud-1791995502063-0h2d",
+      "timestamp": "2026-10-14T16:31:42.063Z",
+      "actorName": "Areeba Siddiqui (Program Director)",
+      "actorEmail": "admin@logix.dev",
+      "actorRole": "admin",
+      "action": "POSTED_ANNOUNCEMENT",
+      "entityType": "Announcement",
+      "entityId": "ann-1791995502063",
+      "details": "Posted announcement 'Test Security Announcement' to All Interns."
+    },
+    {
+      "id": "aud-1791995502053-ag65",
+      "timestamp": "2026-10-14T16:31:42.053Z",
+      "actorName": "Areeba Siddiqui (Program Director)",
+      "actorEmail": "admin@logix.dev",
+      "actorRole": "admin",
+      "action": "USER_LOGIN",
+      "entityType": "Auth",
+      "entityId": "usr-admin-1",
+      "details": "Areeba Siddiqui (Program Director) (admin) signed in to the portal."
+    },
+    {
+      "id": "aud-1791995480775-y0w7",
+      "timestamp": "2026-10-14T16:31:20.775Z",
+      "actorName": "Hamza Ahmed",
+      "actorEmail": "intern@logix.dev",
+      "actorRole": "intern",
+      "action": "USER_LOGIN",
+      "entityType": "Auth",
+      "entityId": "usr-intern-demo",
+      "details": "Hamza Ahmed (intern) signed in to the portal."
+    },
+    {
+      "id": "aud-1791995480726-3f2w",
+      "timestamp": "2026-10-14T16:31:20.726Z",
+      "actorName": "Areeba Siddiqui (Program Director)",
+      "actorEmail": "admin@logix.dev",
+      "actorRole": "admin",
+      "action": "POSTED_ANNOUNCEMENT",
+      "entityType": "Announcement",
+      "entityId": "ann-1791995480726",
+      "details": "Posted announcement 'Test Security Announcement' to All Interns."
+    },
+    {
+      "id": "aud-1791995480717-4mzj",
+      "timestamp": "2026-10-14T16:31:20.717Z",
+      "actorName": "Areeba Siddiqui (Program Director)",
+      "actorEmail": "admin@logix.dev",
+      "actorRole": "admin",
+      "action": "USER_LOGIN",
+      "entityType": "Auth",
+      "entityId": "usr-admin-1",
+      "details": "Areeba Siddiqui (Program Director) (admin) signed in to the portal."
+    },
+    {
+      "id": "aud-1791995163727-6e16",
+      "timestamp": "2026-10-14T16:26:03.727Z",
+      "actorName": "Areeba Siddiqui (Program Director)",
+      "actorEmail": "admin@logix.dev",
+      "actorRole": "admin",
+      "action": "POSTED_ANNOUNCEMENT",
+      "entityType": "Announcement",
+      "entityId": "ann-1791995163727",
+      "details": "Posted announcement 'Test Security Announcement' to All Interns."
+    },
+    {
+      "id": "aud-1791995163718-aam4",
+      "timestamp": "2026-10-14T16:26:03.718Z",
+      "actorName": "Areeba Siddiqui (Program Director)",
+      "actorEmail": "admin@logix.dev",
+      "actorRole": "admin",
+      "action": "USER_LOGIN",
+      "entityType": "Auth",
+      "entityId": "usr-admin-1",
+      "details": "Areeba Siddiqui (Program Director) (admin) signed in to the portal."
+    },
+    {
+      "id": "aud-1791995108829-hmrq",
+      "timestamp": "2026-10-14T16:25:08.829Z",
+      "actorName": "Areeba Siddiqui (Program Director)",
+      "actorEmail": "admin@logix.dev",
+      "actorRole": "admin",
+      "action": "POSTED_ANNOUNCEMENT",
+      "entityType": "Announcement",
+      "entityId": "ann-1791995108828",
+      "details": "Posted announcement 'Test Security Announcement' to All Interns."
+    },
+    {
+      "id": "aud-1791995108810-gaqo",
+      "timestamp": "2026-10-14T16:25:08.810Z",
+      "actorName": "Areeba Siddiqui (Program Director)",
+      "actorEmail": "admin@logix.dev",
+      "actorRole": "admin",
+      "action": "USER_LOGIN",
+      "entityType": "Auth",
+      "entityId": "usr-admin-1",
+      "details": "Areeba Siddiqui (Program Director) (admin) signed in to the portal."
+    },
     {
       "id": "aud-1791986691695-bggu",
       "timestamp": "2026-10-14T14:04:51.695Z",

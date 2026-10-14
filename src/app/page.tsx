@@ -36,13 +36,35 @@ export default function PortalWorkspacePage() {
   const router = useRouter();
   const [db, setDb] = useState<PortalDatabase | null>(null);
   const [loading, setLoading] = useState(true);
-  const [session, setSession] = useState<SessionUser>({
-    id: "usr-admin-1",
-    email: "admin@logix.dev",
-    role: "admin",
-    name: "Areeba Siddiqui (Program Director)",
+  const [session, setSession] = useState<SessionUser>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("logix_portal_session");
+        if (stored) {
+          const parsed = JSON.parse(stored) as SessionUser;
+          if (parsed && parsed.role) return parsed;
+        }
+      } catch {}
+    }
+    return {
+      id: "usr-admin-1",
+      email: "admin@logix.dev",
+      role: "admin",
+      name: "Areeba Siddiqui (Program Director)",
+    };
   });
-  const [selectedInternId, setSelectedInternId] = useState<string>("int-1");
+  const [selectedInternId, setSelectedInternId] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("logix_portal_session");
+        if (stored) {
+          const parsed = JSON.parse(stored) as SessionUser;
+          if (parsed && parsed.internRecordId) return parsed.internRecordId;
+        }
+      } catch {}
+    }
+    return "int-1";
+  });
   const [notifOpen, setNotifOpen] = useState(false);
   const [toast, setToast] = useState<{
     type: "success" | "error";
@@ -52,46 +74,90 @@ export default function PortalWorkspacePage() {
 
   const fetchPortalState = useCallback(async () => {
     try {
-      const res = await fetch("/api/portal", { cache: "no-store" });
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("logix_portal_token") || ""
+          : "";
+      const res = await fetch("/api/portal", {
+        cache: "no-store",
+        headers: token ? { "x-portal-token": token } : {},
+      });
       const data = await res.json();
+      if (!res.ok || data.authenticated === false) {
+        localStorage.removeItem("logix_portal_session");
+        localStorage.removeItem("logix_portal_token");
+        router.push("/login");
+        return;
+      }
       setDb(data);
+      if (data.currentUser) {
+        setSession({
+          id: data.currentUser.id,
+          email: data.currentUser.email,
+          role: data.currentUser.role,
+          name: data.currentUser.name,
+          internRecordId: data.currentUser.internRecordId,
+          mentorId: data.currentUser.mentorId,
+        });
+        if (data.currentUser.internRecordId) {
+          setSelectedInternId(data.currentUser.internRecordId);
+        }
+      }
     } catch (e) {
       console.error("Failed to fetch portal state", e);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
-    let active = true;
-    fetch("/api/portal", { cache: "no-store" })
-      .then((res) => res.json())
-      .then((data) => {
-        if (!active) return;
-        setDb(data);
-        try {
-          const stored = localStorage.getItem("logix_portal_session");
-          if (stored) {
-            const parsed = JSON.parse(stored) as SessionUser;
-            if (parsed && parsed.role) {
-              setSession(parsed);
-              if (parsed.internRecordId) {
-                setSelectedInternId(parsed.internRecordId);
-              }
-            }
-          }
-        } catch {
-          // Fallback to default admin demo session
+    let ignore = false;
+    const init = async () => {
+      const stored = localStorage.getItem("logix_portal_session");
+      const token = localStorage.getItem("logix_portal_token");
+      if (!stored && !token) {
+        router.push("/login");
+        return;
+      }
+      try {
+        const res = await fetch("/api/portal", {
+          cache: "no-store",
+          headers: token ? { "x-portal-token": token } : {},
+        });
+        const data = await res.json();
+        if (ignore) return;
+        if (!res.ok || data.authenticated === false) {
+          localStorage.removeItem("logix_portal_session");
+          localStorage.removeItem("logix_portal_token");
+          router.push("/login");
+          return;
         }
-      })
-      .catch((e) => console.error("Failed to fetch portal state", e))
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
+        setDb(data);
+        if (data.currentUser) {
+          setSession({
+            id: data.currentUser.id,
+            email: data.currentUser.email,
+            role: data.currentUser.role,
+            name: data.currentUser.name,
+            internRecordId: data.currentUser.internRecordId,
+            mentorId: data.currentUser.mentorId,
+          });
+          if (data.currentUser.internRecordId) {
+            setSelectedInternId(data.currentUser.internRecordId);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to init portal state", e);
+      } finally {
+        if (!ignore) setLoading(false);
+      }
     };
-  }, []);
+
+    init();
+    return () => {
+      ignore = true;
+    };
+  }, [router]);
 
   // Session Timeout Monitor (Req 3.1: Logout and session timeout)
   useEffect(() => {
@@ -104,6 +170,7 @@ export default function PortalWorkspacePage() {
       setSecondsLeft((prev) => {
         if (prev <= 1) {
           localStorage.removeItem("logix_portal_session");
+          localStorage.removeItem("logix_portal_token");
           router.push("/login");
           return 0;
         }
@@ -124,20 +191,14 @@ export default function PortalWorkspacePage() {
   ): Promise<boolean> => {
     setToast(null);
     try {
-      const enrichedPayload = {
-        actorName: session.name,
-        actorEmail: session.email,
-        actorRole: session.role,
-        ...payload,
-      };
-
+      const token = localStorage.getItem("logix_portal_token") || "";
       const res = await fetch("/api/portal", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-portal-role": session.role,
+          ...(token ? { "x-portal-token": token } : {}),
         },
-        body: JSON.stringify(enrichedPayload),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -149,7 +210,7 @@ export default function PortalWorkspacePage() {
       }
       setToast({
         type: "success",
-        text: "Portal updated & email/audit notifications recorded.",
+        text: "Portal updated & recorded successfully.",
       });
       await fetchPortalState();
       setTimeout(() => setToast(null), 4000);
@@ -163,36 +224,16 @@ export default function PortalWorkspacePage() {
     }
   };
 
-  const handleRoleSwitch = (newRole: UserRole) => {
-    const nextSession: SessionUser =
-      newRole === "admin"
-        ? {
-            id: "usr-admin-1",
-            email: "admin@logix.dev",
-            role: "admin",
-            name: "Areeba Siddiqui (Admin)",
-          }
-        : newRole === "mentor"
-          ? {
-              id: "usr-mentor-1",
-              email: "mentor@logix.dev",
-              role: "mentor",
-              name: "Zainab Tariq (Principal Mentor)",
-              mentorId: "mnt-1",
-            }
-          : {
-              id: "usr-intern-1",
-              email: "hamza.ahmed@student.edu.pk",
-              role: "intern",
-              name: "Hamza Ahmed (Intern)",
-              internRecordId: selectedInternId || "int-1",
-            };
-    setSession(nextSession);
-    localStorage.setItem("logix_portal_session", JSON.stringify(nextSession));
-  };
-
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/portal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "logout" }),
+      });
+    } catch {}
     localStorage.removeItem("logix_portal_session");
+    localStorage.removeItem("logix_portal_token");
     router.push("/login");
   };
 
@@ -232,61 +273,48 @@ export default function PortalWorkspacePage() {
       {/* Workspace Control Subheader */}
       <div className="no-print border-b border-border bg-card">
         <div className="container-x py-3 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          {/* Active Role & Switcher */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mr-1">
-              Active Role View:
-            </span>
+          {/* Active Authenticated Role & Identity (SEC-04: Enforce genuine auth session) */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Role:
+              </span>
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-bold uppercase tracking-wider ${
+                  session.role === "admin"
+                    ? "bg-brand text-brand-foreground shadow-xs"
+                    : session.role === "mentor"
+                      ? "bg-purple-600 text-white shadow-xs"
+                      : "bg-emerald-600 text-white shadow-xs"
+                }`}
+              >
+                {session.role === "admin" && <Shield className="size-3.5" />}
+                {session.role === "mentor" && <UserCheck className="size-3.5" />}
+                {session.role === "intern" && <GraduationCap className="size-3.5" />}
+                {session.role}
+              </span>
+            </div>
+
+            <div className="text-xs text-foreground font-medium flex items-center gap-1.5 border-l border-border pl-3">
+              <span className="font-semibold">{session.name}</span>
+              <span className="text-muted-foreground">({session.email})</span>
+            </div>
+
             <button
               type="button"
-              onClick={() => handleRoleSwitch("admin")}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${
-                session.role === "admin"
-                  ? "bg-brand text-brand-foreground shadow-xs"
-                  : "bg-muted text-muted-foreground hover:text-foreground"
-              }`}
+              onClick={() => router.push("/login")}
+              className="text-xs text-brand-strong hover:underline font-medium ml-1 cursor-pointer"
             >
-              <Shield className="size-3.5" />
-              Admin
-            </button>
-            <button
-              type="button"
-              onClick={() => handleRoleSwitch("mentor")}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${
-                session.role === "mentor"
-                  ? "bg-brand text-brand-foreground shadow-xs"
-                  : "bg-muted text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <UserCheck className="size-3.5" />
-              Supervisor / Mentor
-            </button>
-            <button
-              type="button"
-              onClick={() => handleRoleSwitch("intern")}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${
-                session.role === "intern"
-                  ? "bg-brand text-brand-foreground shadow-xs"
-                  : "bg-muted text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <GraduationCap className="size-3.5" />
-              Intern (Student)
+              Switch Account
             </button>
 
-            {session.role === "intern" && (
-              <select
-                value={activeInternRecord?.id || ""}
-                onChange={(e) => setSelectedInternId(e.target.value)}
-                className="h-8 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground ml-1"
-                title="Switch Intern Profile"
-              >
-                {db.interns.map((i) => (
-                  <option key={i.id} value={i.id}>
-                    Viewing as: {i.fullName} ({i.internshipStatus})
-                  </option>
-                ))}
-              </select>
+            {session.role === "intern" && db.interns.length > 0 && (
+              <span className="text-xs font-medium text-muted-foreground border-l border-border pl-3">
+                Intern ID:{" "}
+                <span className="font-mono font-semibold text-foreground">
+                  {activeInternRecord?.internId || session.internRecordId || "N/A"}
+                </span>
+              </span>
             )}
           </div>
 

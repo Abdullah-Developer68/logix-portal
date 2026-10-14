@@ -10,7 +10,8 @@
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:seed": "tsx src/scripts/seed-supabase.ts",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "test:security": "tsx src/scripts/test-security.ts"
   },
   "dependencies": {
     "better-auth": "^1.7.7",

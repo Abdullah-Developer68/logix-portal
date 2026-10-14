@@ -22,7 +22,11 @@ import type {
   LeaveStatus,
   UserRole,
 } from "@/lib/types";
-import { auth, hasPermission } from "@/lib/auth";
+import {
+  hasPermission,
+  resolveAuthenticatedUser,
+  createPortalToken,
+} from "@/lib/auth";
 import { supabaseDb } from "@/lib/supabase-db";
 
 export async function GET(request: NextRequest) {
@@ -31,6 +35,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const verifyCode = searchParams.get("verify")?.trim();
 
+    // Public Certificate Verification (Req 3.8)
     if (verifyCode) {
       const cert = db.certificates.find(
         (c) =>
@@ -74,7 +79,24 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Strip password hashes before sending to client
+    // Resolve Authenticated User via Better-Auth / Session Token
+    const authUser = await resolveAuthenticatedUser(request);
+    if (!authUser) {
+      if (searchParams.get("meta") === "public") {
+        return NextResponse.json({
+          authenticated: false,
+          fields: db.fields.filter((f) => f.active),
+          durations: db.durations.filter((d) => d.active),
+          batches: db.batches,
+        });
+      }
+      return NextResponse.json(
+        { error: "Authentication required. Please sign in." },
+        { status: 401 },
+      );
+    }
+
+    // Strip password hashes before sending
     const safeUsers = db.users.map((u) => ({
       id: u.id,
       email: u.email,
@@ -87,9 +109,87 @@ export async function GET(request: NextRequest) {
       lastLoginAt: u.lastLoginAt,
     }));
 
+    // Admin sees complete portal state (Req 3.9 Admin Dashboard)
+    if (authUser.role === "admin") {
+      return NextResponse.json({
+        authenticated: true,
+        currentUser: authUser,
+        ...db,
+        users: safeUsers,
+      });
+    }
+
+    // Mentor sees assigned interns, tasks, and evaluations (Req 3.9 Mentor Dashboard)
+    if (authUser.role === "mentor") {
+      const assignedInterns = db.interns.filter(
+        (i) => i.mentorId === authUser.mentorId || i.mentorName === authUser.name,
+      );
+      const assignedInternIds = new Set(assignedInterns.map((i) => i.id));
+      return NextResponse.json({
+        authenticated: true,
+        currentUser: authUser,
+        fields: db.fields,
+        durations: db.durations,
+        batches: db.batches,
+        mentors: db.mentors,
+        interns: assignedInterns,
+        tasks: db.tasks.filter(
+          (t) => assignedInternIds.has(t.internId) || t.assignedByName === authUser.name,
+        ),
+        evaluations: db.evaluations.filter(
+          (e) => assignedInternIds.has(e.internRecordId) || e.mentorName === authUser.name,
+        ),
+        attendance: db.attendance.filter((a) => assignedInternIds.has(a.internId)),
+        leaves: db.leaves.filter((l) => assignedInternIds.has(l.internId)),
+        certificates: db.certificates.filter((c) => assignedInternIds.has(c.internRecordId)),
+        announcements: db.announcements,
+        notifications: db.notifications.filter(
+          (n) => n.recipientRole === "mentor" || n.recipientRole === "all",
+        ),
+        auditLogs: db.auditLogs.filter((a) => a.actorEmail === authUser.email),
+        users: safeUsers.filter((u) => u.role === "mentor" || u.role === "admin"),
+      });
+    }
+
+    // Intern (Student) sees strictly their own profile, tasks, attendance, and certificates (Req 3.9 Intern Dashboard, SEC-03)
+    const myIntern = db.interns.find(
+      (i) =>
+        i.id === authUser.internRecordId ||
+        i.email.toLowerCase() === authUser.email.toLowerCase(),
+    );
+    const myInternId = myIntern?.id;
     return NextResponse.json({
-      ...db,
-      users: safeUsers,
+      authenticated: true,
+      currentUser: authUser,
+      fields: db.fields.filter((f) => f.active),
+      durations: db.durations.filter((d) => d.active),
+      batches: db.batches,
+      mentors: db.mentors,
+      interns: myIntern ? [myIntern] : [],
+      tasks: myInternId ? db.tasks.filter((t) => t.internId === myInternId) : [],
+      evaluations: myInternId
+        ? db.evaluations.filter((e) => e.internRecordId === myInternId)
+        : [],
+      attendance: myInternId
+        ? db.attendance.filter((a) => a.internId === myInternId)
+        : [],
+      leaves: myInternId
+        ? db.leaves.filter((l) => l.internId === myInternId)
+        : [],
+      certificates: myInternId
+        ? db.certificates.filter((c) => c.internRecordId === myInternId)
+        : [],
+      announcements: db.announcements.filter(
+        (a) => !a.targetAudience || a.targetAudience === "All Interns" || a.targetAudience === "All",
+      ),
+      notifications: db.notifications.filter(
+        (n) =>
+          (myInternId && n.recipientInternRecordId === myInternId) ||
+          n.recipientRole === "intern" ||
+          n.recipientRole === "all",
+      ),
+      auditLogs: [],
+      users: [],
     });
   } catch (err) {
     console.error("[API GET /api/portal ERROR]", err);
@@ -106,33 +206,32 @@ export async function POST(request: NextRequest) {
     const action = body.action as string;
     const db = readDb();
 
-    // 1. Resolve Session and Verified Role from Better-Auth / Request
-    let actorRole: UserRole = (body.actorRole || "intern") as UserRole;
-    let actorEmail: string = sanitizeText(body.actorEmail || "");
-    let actorName: string = sanitizeText(body.actorName || "System User");
+    // 1. Resolve Session and Verified Identity (SEC-01: Prevent role spoofing)
+    const PUBLIC_ACTIONS = new Set([
+      "login",
+      "logout",
+      "register_intern",
+      "verify_email",
+      "request_password_reset",
+      "reset_password",
+      "submit_application",
+    ]);
 
-    // Check Better-Auth server session first
-    try {
-      const session = await auth.api.getSession({ headers: request.headers });
-      if (session?.user) {
-        actorRole = (session.user.role as UserRole) || actorRole;
-        actorEmail = session.user.email || actorEmail;
-        actorName = session.user.name || actorName;
-      }
-    } catch {
-      // Better-auth session check fallback
-    }
+    const authUser = await resolveAuthenticatedUser(request);
 
-    // Verify role against database user record to prevent role spoofing
-    if (actorEmail && db) {
-      const dbUser = db.users.find(
-        (u) => u.email.toLowerCase() === actorEmail.toLowerCase(),
-      );
-      if (dbUser) {
-        actorRole = dbUser.role;
-        actorName = dbUser.name || actorName;
+    // If protected action, require authentication
+    if (!PUBLIC_ACTIONS.has(action)) {
+      if (!authUser) {
+        return NextResponse.json(
+          { error: "Authentication required (401 Unauthorized). Please sign in." },
+          { status: 401 },
+        );
       }
     }
+
+    const actorRole: UserRole = authUser ? authUser.role : "intern";
+    const actorEmail: string = authUser ? authUser.email : "";
+    const actorName: string = authUser ? authUser.name : "System User";
 
     // Server-Side RBAC Enforcement Helper
     const requirePerm = (permission: string) => {
@@ -146,6 +245,7 @@ export async function POST(request: NextRequest) {
       }
       return null;
     };
+
 
     switch (action) {
       // ==========================================================
@@ -204,8 +304,18 @@ export async function POST(request: NextRequest) {
         );
         writeDb(db);
 
-        return NextResponse.json({
+        const token = createPortalToken({
+          userId: user.id,
+          email: user.email,
+          role: user.role,
+          name: user.name,
+          internRecordId: user.internRecordId,
+          mentorId: user.mentorId,
+        });
+
+        const response = NextResponse.json({
           success: true,
+          token,
           user: {
             id: user.id,
             email: user.email,
@@ -216,6 +326,25 @@ export async function POST(request: NextRequest) {
             mentorId: user.mentorId,
           },
         });
+
+        response.cookies.set("portal_token", token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "lax",
+          path: "/",
+          maxAge: 24 * 3600,
+        });
+
+        return response;
+      }
+
+      case "logout": {
+        const response = NextResponse.json({
+          success: true,
+          message: "Signed out successfully.",
+        });
+        response.cookies.delete("portal_token");
+        return response;
       }
 
       case "register_intern": {
@@ -294,7 +423,7 @@ export async function POST(request: NextRequest) {
         if (!user) {
           return NextResponse.json({ error: "Account not found." }, { status: 404 });
         }
-        if (user.verificationCode && user.verificationCode !== code && code !== "000000") {
+        if (!user.verificationCode || user.verificationCode !== code) {
           return NextResponse.json(
             { error: "Invalid verification code." },
             { status: 400 },
@@ -314,8 +443,17 @@ export async function POST(request: NextRequest) {
         });
         writeDb(db);
 
-        return NextResponse.json({
+        const token = createPortalToken({
+          userId: user.id,
+          email: user.email,
+          role: user.role,
+          name: user.name,
+          internRecordId: user.internRecordId,
+        });
+
+        const response = NextResponse.json({
           success: true,
+          token,
           user: {
             id: user.id,
             email: user.email,
@@ -325,6 +463,16 @@ export async function POST(request: NextRequest) {
             internRecordId: user.internRecordId,
           },
         });
+
+        response.cookies.set("portal_token", token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "lax",
+          path: "/",
+          maxAge: 24 * 3600,
+        });
+
+        return response;
       }
 
       case "request_password_reset": {
@@ -364,7 +512,7 @@ export async function POST(request: NextRequest) {
         if (!user) {
           return NextResponse.json({ error: "User not found." }, { status: 404 });
         }
-        if (user.resetCode !== code && code !== "000000") {
+        if (!user.resetCode || user.resetCode !== code) {
           return NextResponse.json({ error: "Invalid reset code." }, { status: 400 });
         }
         if (newPassword.length < 6) {
@@ -540,6 +688,20 @@ export async function POST(request: NextRequest) {
 
         writeDb(db);
 
+        // Supabase Postgres Persistence
+        try {
+          await supabaseDb.syncIntern(newIntern);
+          await supabaseDb.logAudit(
+            fullName,
+            "SUBMITTED_APPLICATION",
+            "Application",
+            internId,
+            `Application submitted for ${fieldObj.name}`,
+          );
+        } catch {
+          // Non-blocking postgres fallback
+        }
+
         await sendPortalEmail({
           to: email,
           subject: `[Logix Portal] Application Received — ${internId}`,
@@ -616,6 +778,20 @@ export async function POST(request: NextRequest) {
         });
 
         writeDb(db);
+
+        // Supabase Postgres Persistence
+        try {
+          await supabaseDb.syncIntern(intern);
+          await supabaseDb.logAudit(
+            actorName,
+            `APPLICATION_${applicationStatus.toUpperCase()}`,
+            "Application",
+            intern.internId,
+            `Updated status for ${intern.fullName} to ${applicationStatus}`,
+          );
+        } catch {
+          // Non-blocking postgres fallback
+        }
 
         await sendPortalEmail({
           to: intern.email,
@@ -734,6 +910,22 @@ export async function POST(request: NextRequest) {
           }
 
           writeDb(db);
+
+          // Supabase Postgres Persistence
+          // Supabase Postgres Persistence
+          try {
+            await supabaseDb.syncIntern(existing);
+            await supabaseDb.logAudit(
+              actorName,
+              "UPDATED_INTERN_RECORD",
+              "InternRecord",
+              existing.internId,
+              `Updated record for ${existing.fullName} (${existing.internId})`,
+            );
+          } catch {
+            // Non-blocking postgres fallback
+          }
+
           return NextResponse.json({ success: true, intern: existing });
         } else {
           const internId = generateNextInternId(db);
@@ -784,6 +976,21 @@ export async function POST(request: NextRequest) {
             details: `Added new intern record ${internId} for ${fullName} (${fieldObj.name}).`,
           });
           writeDb(db);
+
+          // Supabase Postgres Persistence
+          try {
+            await supabaseDb.syncIntern(created);
+            await supabaseDb.logAudit(
+              actorName,
+              "CREATED_INTERN_RECORD",
+              "InternRecord",
+              internId,
+              `Added new intern record ${internId} for ${fullName}`,
+            );
+          } catch {
+            // Non-blocking postgres fallback
+          }
+
           return NextResponse.json({ success: true, intern: created });
         }
       }
@@ -809,6 +1016,20 @@ export async function POST(request: NextRequest) {
           details: `${intern.archived ? "Archived" : "Restored"} intern record ${intern.internId} (${intern.fullName}).`,
         });
         writeDb(db);
+
+        try {
+          await supabaseDb.syncIntern(intern);
+          await supabaseDb.logAudit(
+            actorName,
+            intern.archived ? "ARCHIVED_INTERN" : "RESTORED_INTERN",
+            "InternRecord",
+            intern.internId,
+            `${intern.archived ? "Archived" : "Restored"} intern record ${intern.internId}`,
+          );
+        } catch {
+          // Non-blocking postgres fallback
+        }
+
         return NextResponse.json({ success: true, intern });
       }
 
@@ -832,6 +1053,20 @@ export async function POST(request: NextRequest) {
           details: `Permanently deleted intern record ${removed.internId} (${removed.fullName}).`,
         });
         writeDb(db);
+
+        try {
+          await supabaseDb.deleteIntern(removed.id);
+          await supabaseDb.logAudit(
+            actorName,
+            "DELETED_INTERN_RECORD",
+            "InternRecord",
+            removed.internId,
+            `Permanently deleted intern record ${removed.internId}`,
+          );
+        } catch {
+          // Non-blocking postgres fallback
+        }
+
         return NextResponse.json({ success: true });
       }
 
@@ -967,6 +1202,16 @@ export async function POST(request: NextRequest) {
           details: `${existing ? "Updated" : "Created"} internship department '${name}' (${totalSeats} seats).`,
         });
         writeDb(db);
+
+        try {
+          const targetDept = existing || db.fields[db.fields.length - 1];
+          if (targetDept) {
+            await supabaseDb.syncDepartment(targetDept);
+          }
+        } catch {
+          // Non-blocking postgres fallback
+        }
+
         return NextResponse.json({ success: true });
       }
 
@@ -988,6 +1233,12 @@ export async function POST(request: NextRequest) {
             details: `${field.active ? "Enabled" : "Disabled"} field ${field.name}.`,
           });
           writeDb(db);
+
+          try {
+            await supabaseDb.syncDepartment(field);
+          } catch {
+            // Non-blocking postgres fallback
+          }
         }
         return NextResponse.json({ success: true });
       }
@@ -1032,6 +1283,16 @@ export async function POST(request: NextRequest) {
           details: `Configured ${months}-month internship duration option.`,
         });
         writeDb(db);
+
+        try {
+          const targetDur = existing || db.durations.find((d) => d.months === months);
+          if (targetDur) {
+            await supabaseDb.syncDuration(targetDur);
+          }
+        } catch {
+          // Non-blocking postgres fallback
+        }
+
         return NextResponse.json({ success: true });
       }
 
@@ -1067,7 +1328,7 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        db.batches.push({
+        const newBatch = {
           id: `bat-${Date.now()}`,
           name,
           code: code || name.slice(0, 3).toUpperCase() + "-2026",
@@ -1075,7 +1336,8 @@ export async function POST(request: NextRequest) {
           endDate: endDate || calculateEndDate(startDate, 3),
           status,
           description: description || `${name} internship cohort.`,
-        });
+        };
+        db.batches.push(newBatch);
 
         appendAuditLog(db, {
           actorName,
@@ -1087,6 +1349,13 @@ export async function POST(request: NextRequest) {
           details: `Created cohort batch '${name}' (${startDate} to ${endDate}).`,
         });
         writeDb(db);
+
+        try {
+          await supabaseDb.syncBatch(newBatch);
+        } catch {
+          // Non-blocking postgres fallback
+        }
+
         return NextResponse.json({ success: true });
       }
 
@@ -1153,6 +1422,19 @@ export async function POST(request: NextRequest) {
 
         writeDb(db);
 
+        try {
+          await supabaseDb.syncTask(newTask);
+          await supabaseDb.logAudit(
+            actorName,
+            "ASSIGNED_TASK",
+            "Task",
+            newTask.id,
+            `Assigned task '${title}' to ${intern.fullName}`,
+          );
+        } catch {
+          // Non-blocking postgres fallback
+        }
+
         await sendPortalEmail({
           to: intern.email,
           subject: `[Logix Portal] New Task Assigned: ${title}`,
@@ -1203,6 +1485,20 @@ export async function POST(request: NextRequest) {
         });
 
         writeDb(db);
+
+        try {
+          await supabaseDb.syncTask(task);
+          await supabaseDb.logAudit(
+            task.internName,
+            "SUBMITTED_TASK",
+            "Task",
+            task.id,
+            `Submitted work for '${task.title}'`,
+          );
+        } catch {
+          // Non-blocking postgres fallback
+        }
+
         return NextResponse.json({ success: true, task });
       }
 
@@ -1245,6 +1541,20 @@ export async function POST(request: NextRequest) {
         });
 
         writeDb(db);
+
+        try {
+          await supabaseDb.syncTask(task);
+          await supabaseDb.logAudit(
+            actorName,
+            `REVIEWED_TASK_${status.toUpperCase()}`,
+            "Task",
+            task.id,
+            `Marked task '${task.title}' as ${status}`,
+          );
+        } catch {
+          // Non-blocking postgres fallback
+        }
+
         return NextResponse.json({ success: true, task });
       }
 
@@ -1274,12 +1584,13 @@ export async function POST(request: NextRequest) {
           minute: "2-digit",
         });
 
+        const recordId = existing ? existing.id : `att-${Date.now()}`;
         if (existing) {
           existing.status = status;
           existing.notes = notes || existing.notes;
         } else {
           db.attendance.unshift({
-            id: `att-${Date.now()}`,
+            id: recordId,
             internRecordId: intern.id,
             internId: intern.internId,
             internName: intern.fullName,
@@ -1291,6 +1602,19 @@ export async function POST(request: NextRequest) {
         }
 
         writeDb(db);
+
+        try {
+          supabaseDb.insertAttendance({
+            id: recordId,
+            internId: intern.id,
+            date,
+            status,
+            notes,
+          });
+        } catch {
+          // Non-blocking postgres fallback
+        }
+
         return NextResponse.json({ success: true });
       }
 
@@ -1332,6 +1656,13 @@ export async function POST(request: NextRequest) {
         });
 
         writeDb(db);
+
+        try {
+          await supabaseDb.syncLeave(leave);
+        } catch {
+          // Non-blocking postgres fallback
+        }
+
         return NextResponse.json({ success: true, leave });
       }
 
@@ -1358,6 +1689,13 @@ export async function POST(request: NextRequest) {
         });
 
         writeDb(db);
+
+        try {
+          await supabaseDb.syncLeave(leave);
+        } catch {
+          // Non-blocking postgres fallback
+        }
+
         return NextResponse.json({ success: true, leave });
       }
 
@@ -1441,6 +1779,13 @@ export async function POST(request: NextRequest) {
         });
 
         writeDb(db);
+
+        try {
+          await supabaseDb.syncEvaluation(evalRecord);
+        } catch {
+          // Non-blocking postgres fallback
+        }
+
         return NextResponse.json({ success: true, evaluation: evalRecord });
       }
 
@@ -1487,6 +1832,20 @@ export async function POST(request: NextRequest) {
         evalRecord.internFeedbackSubmittedAt = new Date().toISOString();
 
         writeDb(db);
+
+        try {
+          await supabaseDb.insertFeedback({
+            id: `fb-${Date.now()}`,
+            internId: intern.id,
+            rating,
+            mentorHelpfulness: rating,
+            projectRelevance: rating,
+            comments,
+          });
+        } catch {
+          // Non-blocking postgres fallback
+        }
+
         return NextResponse.json({ success: true, evaluation: evalRecord });
       }
 
@@ -1619,6 +1978,12 @@ export async function POST(request: NextRequest) {
 
         writeDb(db);
 
+        try {
+          await supabaseDb.syncCertificate(newCert);
+        } catch {
+          // Non-blocking postgres fallback
+        }
+
         await sendPortalEmail({
           to: intern.email,
           subject: `[Logix Portal] Your Internship Certificate (${certificateNumber}) is Ready!`,
@@ -1668,6 +2033,13 @@ export async function POST(request: NextRequest) {
         });
 
         writeDb(db);
+
+        try {
+          await supabaseDb.syncCertificate(cert);
+        } catch {
+          // Non-blocking postgres fallback
+        }
+
         return NextResponse.json({ success: true, certificate: cert });
       }
 
@@ -1731,6 +2103,13 @@ export async function POST(request: NextRequest) {
         });
 
         writeDb(db);
+
+        try {
+          await supabaseDb.syncAnnouncement(ann);
+        } catch {
+          // Non-blocking postgres fallback
+        }
+
         return NextResponse.json({ success: true, announcement: ann });
       }
 
