@@ -32,6 +32,43 @@ import { supabaseDb } from "@/lib/supabase-db";
 export async function GET(request: NextRequest) {
   try {
     const db = readDb();
+    const now = new Date();
+    const reminderCutoff = new Date(now);
+    reminderCutoff.setDate(reminderCutoff.getDate() + 2);
+    for (const task of db.tasks) {
+      if (task.status !== "Assigned" || !task.deadline) continue;
+      const deadline = new Date(task.deadline);
+      if (Number.isNaN(deadline.getTime()) || deadline < now || deadline > reminderCutoff) {
+        continue;
+      }
+      const reminderTitle = `Deadline Reminder: ${task.title}`;
+      const alreadySent = db.notifications.some(
+        (notification) =>
+          notification.title === reminderTitle &&
+          notification.recipientInternRecordId === task.internRecordId &&
+          notification.createdAt.slice(0, 10) === now.toISOString().slice(0, 10),
+      );
+      if (alreadySent) continue;
+      const intern = db.interns.find((item) => item.id === task.internRecordId);
+      if (!intern) continue;
+      addPortalNotification(db, {
+        recipientRole: "intern",
+        recipientEmail: intern.email,
+        recipientInternRecordId: intern.id,
+        title: reminderTitle,
+        message: `The task "${task.title}" is due on ${task.deadline}.`,
+        category: "task",
+      });
+      await sendPortalEmail({
+        to: intern.email,
+        subject: `[Logix Portal] Deadline Reminder — ${task.title}`,
+        heading: "Task Deadline Reminder",
+        subHeading: `Due ${task.deadline}`,
+        bodyText: `The task "${task.title}" is due on ${task.deadline}.`,
+        bodyHtml: `<p>Your task <strong>${task.title}</strong> is due on <strong>${task.deadline}</strong>.</p>`,
+      });
+    }
+    writeDb(db);
     const { searchParams } = new URL(request.url);
     const verifyCode = searchParams.get("verify")?.trim();
 
@@ -323,7 +360,6 @@ export async function POST(request: NextRequest) {
 
         const response = NextResponse.json({
           success: true,
-          token,
           user: {
             id: user.id,
             email: user.email,
@@ -419,7 +455,6 @@ export async function POST(request: NextRequest) {
           success: true,
           message: "Account created! Please enter the 6-digit verification code sent to your email.",
           email,
-          demoVerificationCode: verificationCode,
         });
       }
 
@@ -461,7 +496,6 @@ export async function POST(request: NextRequest) {
 
         const response = NextResponse.json({
           success: true,
-          token,
           user: {
             id: user.id,
             email: user.email,
@@ -507,7 +541,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
           success: true,
           message: "Password reset code sent to your email.",
-          demoResetCode: resetCode,
         });
       }
 
@@ -571,6 +604,7 @@ export async function POST(request: NextRequest) {
         const batchId = sanitizeText(body.batchId) || "bat-winter-26";
         const cvFileName = sanitizeText(body.cvFileName) || "Applicant_Resume.pdf";
         const cvFileSize = Number(body.cvFileSize) || 350000;
+        const cvStorageKey = sanitizeText(body.cvStorageKey);
         const coverLetter = sanitizeText(body.coverLetter);
         const skills = Array.isArray(body.skills)
           ? body.skills.map((s: unknown) => sanitizeText(s)).filter(Boolean)
@@ -581,8 +615,6 @@ export async function POST(request: NextRequest) {
         const githubUrl = sanitizeText(body.githubUrl);
         const linkedinUrl = sanitizeText(body.linkedinUrl);
         const portfolioUrl = sanitizeText(body.portfolioUrl);
-        const password = body.password ? String(body.password) : "";
-
         if (!fullName || !email || !cnicOrStudentId || !university) {
           return NextResponse.json(
             {
@@ -631,6 +663,7 @@ export async function POST(request: NextRequest) {
           mentorName: defaultMentor.name,
           cvFileName,
           cvFileSize,
+          cvStorageKey,
           coverLetter,
           skills: skills.length > 0 ? skills : fieldObj.defaultSkills,
           githubUrl,
@@ -644,27 +677,6 @@ export async function POST(request: NextRequest) {
           appliedAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
-
-        // Link or create user account for intern login
-        let userAccount = db.users.find(
-          (u) => u.email.toLowerCase() === email,
-        );
-        if (!userAccount) {
-          userAccount = {
-            id: `usr-${Date.now()}`,
-            email,
-            passwordHash: hashPassword(password || "Intern@123"),
-            role: "intern",
-            name: fullName,
-            emailVerified: true,
-            internRecordId: recordId,
-            createdAt: new Date().toISOString(),
-          };
-          db.users.push(userAccount);
-        } else {
-          userAccount.internRecordId = recordId;
-        }
-        newIntern.userId = userAccount.id;
 
         db.interns.unshift(newIntern);
 
@@ -1381,6 +1393,7 @@ export async function POST(request: NextRequest) {
         const priority =
           (body.priority as "Low" | "Medium" | "High") || "Medium";
         const attachmentName = sanitizeText(body.attachmentName);
+        const attachmentStorageKey = sanitizeText(body.attachmentStorageKey);
 
         const intern = db.interns.find((i) => i.id === internRecordId);
         if (!title || !intern || !deadline) {
@@ -1403,6 +1416,7 @@ export async function POST(request: NextRequest) {
           deadline,
           priority,
           attachmentName: attachmentName || undefined,
+          attachmentStorageKey: attachmentStorageKey || undefined,
           status: "Assigned" as TaskStatus,
           createdAt: new Date().toISOString(),
         };
@@ -1462,6 +1476,7 @@ export async function POST(request: NextRequest) {
         const taskId = sanitizeText(body.taskId);
         const submissionLink = sanitizeText(body.submissionLink);
         const submissionFileName = sanitizeText(body.submissionFileName);
+        const submissionStorageKey = sanitizeText(body.submissionStorageKey);
         const submissionNotes = sanitizeText(body.submissionNotes);
 
         const task = db.tasks.find((t) => t.id === taskId);
@@ -1471,6 +1486,7 @@ export async function POST(request: NextRequest) {
 
         task.submissionLink = submissionLink;
         task.submissionFileName = submissionFileName;
+        task.submissionStorageKey = submissionStorageKey || undefined;
         task.submissionNotes = submissionNotes;
         task.status = "Submitted";
         task.submittedAt = new Date().toISOString();

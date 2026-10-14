@@ -13,7 +13,7 @@ async function runTests() {
       body: JSON.stringify({ action, ...body }),
     });
     const data = await res.json().catch(() => ({}));
-    return { status: res.status, data };
+    return { status: res.status, data, cookie: res.headers.get("set-cookie")?.split(";")[0] || "" };
   }
 
   async function get(path: string, headers: Record<string, string> = {}) {
@@ -57,18 +57,18 @@ async function runTests() {
   // TEST 5: Spoofed actorRole in body is rejected
   const spoofedAdmin = await post("delete_intern_record", {
     id: "int-1",
-    actorEmail: "admin@logix.dev",
+    actorEmail: "trailadmin",
     actorRole: "admin",
   });
   assert("SEC-01: Body role spoofing without token returns 401", spoofedAdmin.status === 401);
 
   // TEST 6: Login as Admin
   const adminLogin = await post("login", {
-    email: "admin@logix.dev",
-    password: "Admin@123",
+    email: "trailadmin",
+    password: "12345678",
   });
-  assert("Admin authentication returns valid signed session token", adminLogin.status === 200 && !!adminLogin.data.token);
-  const adminToken = adminLogin.data.token;
+  assert("Admin authentication sets a signed httpOnly session cookie", adminLogin.status === 200 && adminLogin.cookie.includes("portal_token="));
+  const adminCookie = adminLogin.cookie;
 
   // TEST 7: Admin token can perform administrative actions
   const adminAction = await post("post_announcement", {
@@ -76,27 +76,27 @@ async function runTests() {
     content: "Automated security test payload.",
     targetAudience: "All Interns",
     priority: "Normal",
-  }, { "x-portal-token": adminToken });
+  }, { Cookie: adminCookie });
   assert("Admin token executes privileged mutations (200 OK)", adminAction.status === 200 && adminAction.data.success === true);
 
   // TEST 8: Login as Intern
   const internLogin = await post("login", {
-    email: "intern@logix.dev",
-    password: "Intern@123",
+    email: "trailintern",
+    password: "12345678",
   });
-  assert("Intern authentication returns valid signed session token", internLogin.status === 200 && !!internLogin.data.token);
-  const internToken = internLogin.data.token;
+  assert("Intern authentication sets a signed httpOnly session cookie", internLogin.status === 200 && internLogin.cookie.includes("portal_token="));
+  const internCookie = internLogin.cookie;
 
   // TEST 9: Intern token attempting admin mutation (delete_intern_record) returns 403 Forbidden
-  const internPrivEsc = await post("delete_intern_record", { id: "int-1" }, { "x-portal-token": internToken });
+  const internPrivEsc = await post("delete_intern_record", { id: "int-1" }, { Cookie: internCookie });
   assert("SEC-01: Intern role cannot perform admin mutations (403 Forbidden)", internPrivEsc.status === 403);
 
   // TEST 10: Intern token attempting to issue certificate returns 403 Forbidden
-  const internCertForge = await post("issue_certificate", { internRecordId: "int-1" }, { "x-portal-token": internToken });
+  const internCertForge = await post("issue_certificate", { internRecordId: "int-1" }, { Cookie: internCookie });
   assert("SEC-01: Intern role cannot issue certificates (403 Forbidden)", internCertForge.status === 403);
 
   // TEST 11: Intern querying GET /api/portal receives ONLY scoped data
-  const internGet = await get("/api/portal", { "x-portal-token": internToken });
+  const internGet = await get("/api/portal", { Cookie: internCookie });
   const internData = internGet.data;
   assert(
     "SEC-03: Intern GET /api/portal is strictly scoped to own record",
@@ -107,63 +107,27 @@ async function runTests() {
 
   // TEST 12: Login as Mentor
   const mentorLogin = await post("login", {
-    email: "mentor@logix.dev",
-    password: "Mentor@123",
+    email: "trailsupervisor",
+    password: "12345678",
   });
-  assert("Mentor authentication returns valid signed session token", mentorLogin.status === 200 && !!mentorLogin.data.token);
-  const mentorToken = mentorLogin.data.token;
+  assert("Mentor authentication sets a signed httpOnly session cookie", mentorLogin.status === 200 && mentorLogin.cookie.includes("portal_token="));
+  const mentorCookie = mentorLogin.cookie;
 
   // TEST 13: Mentor cannot delete intern records (403 Forbidden)
-  const mentorDelete = await post("delete_intern_record", { id: "int-1" }, { "x-portal-token": mentorToken });
+  const mentorDelete = await post("delete_intern_record", { id: "int-1" }, { Cookie: mentorCookie });
   assert("SEC-01: Mentor role cannot delete intern records (403 Forbidden)", mentorDelete.status === 403);
 
   // TEST 14: Mentor cannot manage departments (403 Forbidden)
-  const mentorDept = await post("save_field", { name: "Hacked Dept", code: "HCK" }, { "x-portal-token": mentorToken });
+  const mentorDept = await post("save_field", { name: "Hacked Dept", code: "HCK" }, { Cookie: mentorCookie });
   assert("SEC-01: Mentor role cannot manage departments (403 Forbidden)", mentorDept.status === 403);
 
   // TEST 15: Mentor GET /api/portal returns only assigned interns and excludes intern accounts from users
-  const mentorGet = await get("/api/portal", { "x-portal-token": mentorToken });
+  const mentorGet = await get("/api/portal", { Cookie: mentorCookie });
   assert(
     "SEC-03: Mentor GET /api/portal scoped to assigned interns only",
     mentorGet.status === 200 &&
     mentorGet.data.users.every((u: { role?: string }) => u.role !== "intern") &&
     Array.isArray(mentorGet.data.interns)
-  );
-
-  // TEST 16: Login with trailadmin (username: trailadmin, password: 12345678)
-  const trailAdminLogin = await post("login", {
-    email: "trailadmin",
-    password: "12345678",
-  });
-  assert(
-    "trailadmin logs in successfully with password 12345678",
-    trailAdminLogin.status === 200 &&
-    trailAdminLogin.data.user?.role === "admin" &&
-    !!trailAdminLogin.data.token
-  );
-
-  // TEST 17: Login with trailsupervisor (username: trailsupervisor, password: 12345678)
-  const trailSupLogin = await post("login", {
-    email: "trailsupervisor",
-    password: "12345678",
-  });
-  assert(
-    "trailsupervisor logs in successfully with password 12345678",
-    trailSupLogin.status === 200 &&
-    trailSupLogin.data.user?.role === "mentor" &&
-    !!trailSupLogin.data.token
-  );
-
-  // TEST 18: Login with trailintern (username: trailintern, password: 12345678)
-  const trailInternLogin = await post("login", {
-    email: "trailintern",
-    password: "12345678",
-  });
-  assert(
-    "trailintern logs in successfully with password 12345678",
-    trailInternLogin.status === 200 &&
-    trailInternLogin.data.user?.role === "intern" &&
-    !!trailInternLogin.data.token
   );
 
   console.log(`\n=== AUDIT RESULTS: ${passed} PASSED, ${failed} FAILED ===`);

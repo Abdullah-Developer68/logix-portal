@@ -1,122 +1,36 @@
 {
   "users": [
     {
-      "id": "usr-trail-admin",
-      "username": "trailadmin",
-      "email": "trailadmin@logix.dev",
-      "passwordHash": "scrypt:logix_portal_salt_2026:8f7c32ee1f0c050b6eb9bfdc2514abfc72a7ed7701bda4c08bb56a32ae042eac",
+      "id": "usr-trailadmin",
+      "email": "trailadmin",
+      "passwordHash": "scrypt:trail_admin_salt_2026:a98c4be641503c60d905b55159d4bd751642b91b07911edfd5e70be26f27abb4",
       "role": "admin",
-      "name": "Trial Administrator",
+      "name": "Trail Admin",
       "emailVerified": true,
-      "createdAt": "2026-10-14T10:00:00Z",
-      "lastLoginAt": "2026-10-14T17:02:44.782Z"
+      "createdAt": "2026-10-15T00:00:00Z",
+      "lastLoginAt": "2026-10-14T22:25:19.704Z"
     },
     {
-      "id": "usr-trail-supervisor",
-      "username": "trailsupervisor",
-      "email": "trailsupervisor@logix.dev",
-      "passwordHash": "scrypt:logix_portal_salt_2026:8f7c32ee1f0c050b6eb9bfdc2514abfc72a7ed7701bda4c08bb56a32ae042eac",
+      "id": "usr-trailsupervisor",
+      "email": "trailsupervisor",
+      "passwordHash": "scrypt:trail_supervisor_salt_2026:9fa4041e3f443a3584f6e8d30f2690838049e32f8501fc387d986bde89b17b35",
       "role": "mentor",
-      "name": "Trial Supervisor",
-      "emailVerified": true,
-      "mentorId": "mnt-trail",
-      "createdAt": "2026-10-14T10:00:00Z",
-      "lastLoginAt": "2026-10-14T17:02:44.815Z"
-    },
-    {
-      "id": "usr-trail-intern",
-      "username": "trailintern",
-      "email": "trailintern@logix.dev",
-      "passwordHash": "scrypt:logix_portal_salt_2026:8f7c32ee1f0c050b6eb9bfdc2514abfc72a7ed7701bda4c08bb56a32ae042eac",
-      "role": "intern",
-      "name": "Trial Intern",
-      "emailVerified": true,
-      "internRecordId": "int-trail",
-      "createdAt": "2026-10-14T10:00:00Z",
-      "lastLoginAt": "2026-10-14T17:02:44.849Z"
-    },
-    {
-      "id": "usr-admin-1",
-      "email": "admin@logix.dev",
-      "passwordHash": "scrypt:logix_portal_salt_2026:6259775de9834c4112d370ed6e6a6d576840f6ac6ade858bd857bb554c37a688",
-      "role": "admin",
-      "name": "Areeba Siddiqui (Program Director)",
-      "emailVerified": true,
-      "createdAt": "2026-01-10T09:00:00Z",
-      "lastLoginAt": "2026-10-14T17:02:44.600Z"
-    },
-    {
-      "id": "usr-mentor-1",
-      "email": "mentor@logix.dev",
-      "passwordHash": "scrypt:logix_portal_salt_2026:81a56b98e60f35d956db0e4812336f32446d22f2ff27d88f96cc9356b2ffce17",
-      "role": "mentor",
-      "name": "Zainab Tariq (Principal Architect)",
+      "name": "Trail Supervisor",
       "emailVerified": true,
       "mentorId": "mnt-1",
-      "createdAt": "2026-01-15T10:00:00Z",
-      "lastLoginAt": "2026-10-14T17:02:44.724Z"
+      "createdAt": "2026-10-15T00:00:00Z",
+      "lastLoginAt": "2026-10-14T22:19:12.295Z"
     },
     {
-      "id": "usr-mentor-2",
-      "email": "omar.farooq@logix.dev",
-      "passwordHash": "scrypt:logix_portal_salt_2026:81a56b98e60f35d956db0e4812336f32446d22f2ff27d88f96cc9356b2ffce17",
-      "role": "mentor",
-      "name": "Omar Farooq (Staff AI Engineer)",
-      "emailVerified": true,
-      "mentorId": "mnt-2",
-      "createdAt": "2026-02-01T10:00:00Z"
-    },
-    {
-      "id": "usr-mentor-3",
-      "email": "sana.malik@logix.dev",
-      "passwordHash": "scrypt:logix_portal_salt_2026:81a56b98e60f35d956db0e4812336f32446d22f2ff27d88f96cc9356b2ffce17",
-      "role": "mentor",
-      "name": "Sana Malik (Design Systems Lead)",
-      "emailVerified": true,
-      "mentorId": "mnt-3",
-      "createdAt": "2026-02-05T10:00:00Z"
-    },
-    {
-      "id": "usr-intern-demo",
-      "email": "intern@logix.dev",
-      "passwordHash": "scrypt:logix_portal_salt_2026:351ad06e41ac9f5c598cc18c114e8e1584029bcdd3cab6f1d5bf424b7de45d37",
+      "id": "usr-trailintern",
+      "email": "trailintern",
+      "passwordHash": "scrypt:trail_intern_salt_2026:1c01cb95092ea14e3adb070f93044ee47e76d27660031e6812b0fe451b4745cc",
       "role": "intern",
-      "name": "Hamza Ahmed",
+      "name": "Trail Intern",
       "emailVerified": true,
       "internRecordId": "int-1",
-      "createdAt": "2026-07-01T08:00:00Z",
-      "lastLoginAt": "2026-10-14T17:02:44.652Z"
-    },
-    {
-      "id": "usr-intern-1",
-      "email": "hamza.ahmed@student.edu.pk",
-      "passwordHash": "scrypt:logix_portal_salt_2026:351ad06e41ac9f5c598cc18c114e8e1584029bcdd3cab6f1d5bf424b7de45d37",
-      "role": "intern",
-      "name": "Hamza Ahmed",
-      "emailVerified": true,
-      "internRecordId": "int-1",
-      "createdAt": "2026-07-01T08:00:00Z",
-      "lastLoginAt": "2026-10-13T04:15:00Z"
-    },
-    {
-      "id": "usr-intern-2",
-      "email": "ayesha.khan@nust.edu.pk",
-      "passwordHash": "scrypt:logix_portal_salt_2026:351ad06e41ac9f5c598cc18c114e8e1584029bcdd3cab6f1d5bf424b7de45d37",
-      "role": "intern",
-      "name": "Ayesha Khan",
-      "emailVerified": true,
-      "internRecordId": "int-2",
-      "createdAt": "2026-08-12T11:20:00Z"
-    },
-    {
-      "id": "usr-intern-3",
-      "email": "bilal.raza@fast.edu.pk",
-      "passwordHash": "scrypt:logix_portal_salt_2026:351ad06e41ac9f5c598cc18c114e8e1584029bcdd3cab6f1d5bf424b7de45d37",
-      "role": "intern",
-      "name": "Bilal Raza",
-      "emailVerified": true,
-      "internRecordId": "int-3",
-      "createdAt": "2026-06-28T09:00:00Z"
+      "createdAt": "2026-10-15T00:00:00Z",
+      "lastLoginAt": "2026-10-14T22:19:48.991Z"
     }
   ],
   "fields": [
@@ -127,7 +41,7 @@
       "podName": "Web Platform Pod",
       "description": "Full-stack modern web engineering using Next.js App Router, React 19, TypeScript, Tailwind CSS, and scalable APIs.",
       "totalSeats": 25,
-      "filledSeats": 2,
+      "filledSeats": 1,
       "active": true,
       "defaultSkills": [
         "Next.js",
@@ -312,16 +226,6 @@
   ],
   "mentors": [
     {
-      "id": "mnt-trail",
-      "userId": "usr-trail-supervisor",
-      "name": "Trial Supervisor",
-      "email": "trailsupervisor@logix.dev",
-      "title": "Senior Technical Mentor & Supervisor",
-      "department": "Web Development",
-      "avatarInitials": "TS",
-      "bio": "Trial Supervisor for testing evaluations, task assignments, and reviews."
-    },
-    {
       "id": "mnt-1",
       "userId": "usr-mentor-1",
       "name": "Zainab Tariq",
@@ -353,49 +257,6 @@
     }
   ],
   "interns": [
-    {
-      "id": "int-trail",
-      "internId": "LGX-INT-2026-099",
-      "userId": "usr-trail-intern",
-      "fullName": "Trial Intern",
-      "fatherName": "Trial Father",
-      "cnicOrStudentId": "42101-9999999-1",
-      "email": "trailintern@logix.dev",
-      "phone": "+92 300 9999999",
-      "city": "Karachi",
-      "university": "FAST NUCES",
-      "degree": "BS Software Engineering",
-      "semester": "7th Semester",
-      "cgpa": "3.85",
-      "fieldId": "fld-web",
-      "fieldName": "Web Development",
-      "durationMonths": 3,
-      "startPreference": "2026-09-01",
-      "startDate": "2026-09-01",
-      "endDate": "2026-12-01",
-      "batchId": "bat-autumn-26",
-      "batchName": "Autumn 2026 Batch",
-      "mentorId": "mnt-trail",
-      "mentorName": "Trial Supervisor",
-      "cvFileName": "Trial_Intern_Resume.pdf",
-      "cvFileSize": 245000,
-      "skills": [
-        "Next.js",
-        "React",
-        "TypeScript",
-        "Tailwind CSS",
-        "PostgreSQL"
-      ],
-      "githubUrl": "https://github.com/trailintern",
-      "linkedinUrl": "https://linkedin.com/in/trailintern",
-      "applicationStatus": "Approved",
-      "internshipStatus": "Active",
-      "archived": false,
-      "progressPercentage": 50,
-      "attendancePercentage": 100,
-      "appliedAt": "2026-08-15T10:00:00Z",
-      "updatedAt": "2026-10-14T10:00:00Z"
-    },
     {
       "id": "int-1",
       "internId": "LGX-INT-2026-001",
@@ -699,27 +560,6 @@
   ],
   "tasks": [
     {
-      "id": "tsk-trail-1",
-      "title": "Implement Full-Stack Intern Portal Feature",
-      "description": "Develop and verify end-to-end task assignment and progress dashboard with Drizzle ORM and Postgres.",
-      "internRecordId": "int-trail",
-      "internId": "LGX-INT-2026-099",
-      "internName": "Trial Intern",
-      "fieldName": "Web Development",
-      "assignedByMentorId": "mnt-trail",
-      "assignedByName": "Trial Supervisor",
-      "deadline": "2026-10-25",
-      "priority": "High",
-      "attachmentName": "portal-specification.pdf",
-      "status": "Submitted",
-      "submissionLink": "https://github.com/trailintern/logix-portal",
-      "submissionFileName": "portal-implementation.zip",
-      "submissionNotes": "Completed authentication, role access matrix, and Drizzle models.",
-      "submittedAt": "2026-10-14T12:00:00Z",
-      "mentorComments": "Pending final supervisor code review.",
-      "createdAt": "2026-10-01T09:00:00Z"
-    },
-    {
       "id": "tsk-1",
       "title": "Architect Tokenized UI Component Library (Logix v1.0)",
       "description": "Build Button, Badge, Card, Input, and Modal components matching the Logix Design System v1.0 specifications with full dark mode support.",
@@ -878,16 +718,6 @@
   ],
   "attendance": [
     {
-      "id": "att-trail-1",
-      "internRecordId": "int-trail",
-      "internId": "LGX-INT-2026-099",
-      "internName": "Trial Intern",
-      "date": "2026-10-14",
-      "status": "Present",
-      "checkInTime": "09:00 AM",
-      "notes": "Daily sprint check-in"
-    },
-    {
       "id": "att-1",
       "internRecordId": "int-1",
       "internId": "LGX-INT-2026-001",
@@ -957,8 +787,10 @@
       "startDate": "2026-10-20",
       "endDate": "2026-10-21",
       "reason": "University mid-semester examination at NUST SEECS.",
-      "status": "Pending",
-      "createdAt": "2026-10-12T14:00:00Z"
+      "status": "Approved",
+      "createdAt": "2026-10-12T14:00:00Z",
+      "reviewedBy": "Trail Admin",
+      "reviewedAt": "2026-10-14T22:29:59.755Z"
     },
     {
       "id": "lv-2",
@@ -1020,6 +852,52 @@
   ],
   "certificates": [
     {
+      "id": "crt-1792017018246",
+      "certificateNumber": "LGX-CERT-2026-8402",
+      "internRecordId": "int-3",
+      "internId": "LGX-INT-2026-003",
+      "internName": "Bilal Raza",
+      "fatherName": "Raza Mehmood",
+      "fieldName": "UI/UX Design",
+      "durationMonths": 3,
+      "batchName": "Summer 2026 Batch",
+      "startDate": "2026-07-01",
+      "endDate": "2026-10-01",
+      "issueDate": "2026-10-14",
+      "grade": "A+",
+      "totalMarks": 92,
+      "mentorName": "Sana Malik",
+      "signatoryName": "Areeba Siddiqui",
+      "signatoryTitle": "Director of Engineering & Talent, Logix Technologies",
+      "status": "Re-issued",
+      "history": [
+        {
+          "action": "Re-issued",
+          "timestamp": "2026-10-14T22:30:31.246Z",
+          "actor": "Trail Admin (admin)",
+          "note": "Certificate re-issued with updated evaluation verification."
+        },
+        {
+          "action": "Revoked",
+          "timestamp": "2026-10-14T22:30:26.311Z",
+          "actor": "Trail Admin (admin)",
+          "note": "Administrative compliance verification."
+        },
+        {
+          "action": "Re-issued",
+          "timestamp": "2026-10-14T22:30:20.671Z",
+          "actor": "Trail Admin (admin)",
+          "note": "Certificate re-issued with updated evaluation verification."
+        },
+        {
+          "action": "Issued",
+          "timestamp": "2026-10-14T22:30:18.246Z",
+          "actor": "Trail Admin (admin)",
+          "note": "Issued upon internship completion with Grade A+ (92/100)."
+        }
+      ]
+    },
+    {
       "id": "crt-1",
       "certificateNumber": "LGX-CERT-2026-8401",
       "internRecordId": "int-1",
@@ -1031,14 +909,50 @@
       "batchName": "Summer 2026 Batch",
       "startDate": "2026-07-01",
       "endDate": "2026-10-01",
-      "issueDate": "2026-10-05",
+      "issueDate": "2026-10-14",
       "grade": "A+",
       "totalMarks": 96,
       "mentorName": "Zainab Tariq",
       "signatoryName": "Areeba Siddiqui",
       "signatoryTitle": "Director of Engineering & Talent, Logix Technologies",
-      "status": "Valid",
+      "status": "Re-issued",
       "history": [
+        {
+          "action": "Re-issued",
+          "timestamp": "2026-10-14T22:30:13.631Z",
+          "actor": "Trail Admin (admin)",
+          "note": "Certificate re-issued with updated evaluation verification."
+        },
+        {
+          "action": "Revoked",
+          "timestamp": "2026-10-14T22:30:12.415Z",
+          "actor": "Trail Admin (admin)",
+          "note": "Administrative compliance verification."
+        },
+        {
+          "action": "Re-issued",
+          "timestamp": "2026-10-14T22:30:11.384Z",
+          "actor": "Trail Admin (admin)",
+          "note": "Certificate re-issued with updated evaluation verification."
+        },
+        {
+          "action": "Re-issued",
+          "timestamp": "2026-10-14T22:30:11.049Z",
+          "actor": "Trail Admin (admin)",
+          "note": "Certificate re-issued with updated evaluation verification."
+        },
+        {
+          "action": "Re-issued",
+          "timestamp": "2026-10-14T22:30:09.692Z",
+          "actor": "Trail Admin (admin)",
+          "note": "Certificate re-issued with updated evaluation verification."
+        },
+        {
+          "action": "Re-issued",
+          "timestamp": "2026-10-14T22:30:08.430Z",
+          "actor": "Trail Admin (admin)",
+          "note": "Certificate re-issued with updated evaluation verification."
+        },
         {
           "action": "Issued",
           "timestamp": "2026-10-05T14:20:00Z",
@@ -1049,6 +963,59 @@
     }
   ],
   "notifications": [
+    {
+      "id": "ntf-1792017018246-pj7j",
+      "recipientRole": "intern",
+      "recipientEmail": "bilal.raza@fast.edu.pk",
+      "recipientInternRecordId": "int-3",
+      "title": "Certificate Issued: LGX-CERT-2026-8402",
+      "message": "Congratulations Bilal Raza! Your official QR-verified internship certificate (LGX-CERT-2026-8402) has been issued.",
+      "category": "certificate",
+      "read": false,
+      "emailDispatched": true,
+      "createdAt": "2026-10-14T22:30:18.246Z"
+    },
+    {
+      "id": "ntf-1792016999755-k3hw",
+      "recipientRole": "intern",
+      "recipientInternRecordId": "int-2",
+      "title": "Leave Request Approved",
+      "message": "Your leave request (2026-10-20 to 2026-10-21) was Approved.",
+      "category": "attendance",
+      "read": false,
+      "emailDispatched": true,
+      "createdAt": "2026-10-14T22:29:59.755Z"
+    },
+    {
+      "id": "ntf-1792016352160-gm4b",
+      "recipientRole": "all",
+      "title": "Announcement: Test Security Announcement",
+      "message": "Automated security test payload.",
+      "category": "announcement",
+      "read": false,
+      "emailDispatched": true,
+      "createdAt": "2026-10-14T22:19:12.160Z"
+    },
+    {
+      "id": "ntf-1792016131067-cypx",
+      "recipientRole": "all",
+      "title": "Announcement: Test Security Announcement",
+      "message": "Automated security test payload.",
+      "category": "announcement",
+      "read": false,
+      "emailDispatched": true,
+      "createdAt": "2026-10-14T22:15:31.067Z"
+    },
+    {
+      "id": "ntf-1792016001567-b5hl",
+      "recipientRole": "all",
+      "title": "Announcement: Test Security Announcement",
+      "message": "Automated security test payload.",
+      "category": "announcement",
+      "read": false,
+      "emailDispatched": true,
+      "createdAt": "2026-10-14T22:13:21.567Z"
+    },
     {
       "id": "ntf-1791997364609-g1y1",
       "recipientRole": "all",
@@ -1166,6 +1133,36 @@
   ],
   "announcements": [
     {
+      "id": "ann-1792016352160",
+      "title": "Test Security Announcement",
+      "content": "Automated security test payload.",
+      "targetAudience": "All Interns",
+      "priority": "Normal",
+      "authorName": "Trail Admin",
+      "authorRole": "admin",
+      "createdAt": "2026-10-14T22:19:12.160Z"
+    },
+    {
+      "id": "ann-1792016131067",
+      "title": "Test Security Announcement",
+      "content": "Automated security test payload.",
+      "targetAudience": "All Interns",
+      "priority": "Normal",
+      "authorName": "Areeba Siddiqui (Program Director)",
+      "authorRole": "admin",
+      "createdAt": "2026-10-14T22:15:31.067Z"
+    },
+    {
+      "id": "ann-1792016001567",
+      "title": "Test Security Announcement",
+      "content": "Automated security test payload.",
+      "targetAudience": "All Interns",
+      "priority": "Normal",
+      "authorName": "Areeba Siddiqui (Program Director)",
+      "authorRole": "admin",
+      "createdAt": "2026-10-14T22:13:21.567Z"
+    },
+    {
       "id": "ann-1791997364609",
       "title": "Test Security Announcement",
       "content": "Automated security test payload.",
@@ -1257,6 +1254,303 @@
     }
   ],
   "auditLogs": [
+    {
+      "id": "aud-1792017031246-3mee",
+      "timestamp": "2026-10-14T22:30:31.246Z",
+      "actorName": "Trail Admin",
+      "actorEmail": "trailadmin",
+      "actorRole": "admin",
+      "action": "REISSUED_CERTIFICATE",
+      "entityType": "Certificate",
+      "entityId": "LGX-CERT-2026-8402",
+      "details": "Re-issued certificate LGX-CERT-2026-8402 for Bilal Raza."
+    },
+    {
+      "id": "aud-1792017026311-gi9o",
+      "timestamp": "2026-10-14T22:30:26.311Z",
+      "actorName": "Trail Admin",
+      "actorEmail": "trailadmin",
+      "actorRole": "admin",
+      "action": "REVOKED_CERTIFICATE",
+      "entityType": "Certificate",
+      "entityId": "LGX-CERT-2026-8402",
+      "details": "Revoked certificate LGX-CERT-2026-8402 (Bilal Raza). Reason: Administrative compliance verification."
+    },
+    {
+      "id": "aud-1792017020671-lfoi",
+      "timestamp": "2026-10-14T22:30:20.671Z",
+      "actorName": "Trail Admin",
+      "actorEmail": "trailadmin",
+      "actorRole": "admin",
+      "action": "REISSUED_CERTIFICATE",
+      "entityType": "Certificate",
+      "entityId": "LGX-CERT-2026-8402",
+      "details": "Re-issued certificate LGX-CERT-2026-8402 for Bilal Raza."
+    },
+    {
+      "id": "aud-1792017018246-1scl",
+      "timestamp": "2026-10-14T22:30:18.246Z",
+      "actorName": "Trail Admin",
+      "actorEmail": "trailadmin",
+      "actorRole": "admin",
+      "action": "ISSUED_CERTIFICATE",
+      "entityType": "Certificate",
+      "entityId": "LGX-CERT-2026-8402",
+      "details": "Issued certificate LGX-CERT-2026-8402 to Bilal Raza (LGX-INT-2026-003)."
+    },
+    {
+      "id": "aud-1792017013631-6yf4",
+      "timestamp": "2026-10-14T22:30:13.631Z",
+      "actorName": "Trail Admin",
+      "actorEmail": "trailadmin",
+      "actorRole": "admin",
+      "action": "REISSUED_CERTIFICATE",
+      "entityType": "Certificate",
+      "entityId": "LGX-CERT-2026-8401",
+      "details": "Re-issued certificate LGX-CERT-2026-8401 for Hamza Ahmed."
+    },
+    {
+      "id": "aud-1792017012415-ysv7",
+      "timestamp": "2026-10-14T22:30:12.415Z",
+      "actorName": "Trail Admin",
+      "actorEmail": "trailadmin",
+      "actorRole": "admin",
+      "action": "REVOKED_CERTIFICATE",
+      "entityType": "Certificate",
+      "entityId": "LGX-CERT-2026-8401",
+      "details": "Revoked certificate LGX-CERT-2026-8401 (Hamza Ahmed). Reason: Administrative compliance verification."
+    },
+    {
+      "id": "aud-1792017011384-apsv",
+      "timestamp": "2026-10-14T22:30:11.384Z",
+      "actorName": "Trail Admin",
+      "actorEmail": "trailadmin",
+      "actorRole": "admin",
+      "action": "REISSUED_CERTIFICATE",
+      "entityType": "Certificate",
+      "entityId": "LGX-CERT-2026-8401",
+      "details": "Re-issued certificate LGX-CERT-2026-8401 for Hamza Ahmed."
+    },
+    {
+      "id": "aud-1792017011049-flj0",
+      "timestamp": "2026-10-14T22:30:11.050Z",
+      "actorName": "Trail Admin",
+      "actorEmail": "trailadmin",
+      "actorRole": "admin",
+      "action": "REISSUED_CERTIFICATE",
+      "entityType": "Certificate",
+      "entityId": "LGX-CERT-2026-8401",
+      "details": "Re-issued certificate LGX-CERT-2026-8401 for Hamza Ahmed."
+    },
+    {
+      "id": "aud-1792017009692-hhw7",
+      "timestamp": "2026-10-14T22:30:09.692Z",
+      "actorName": "Trail Admin",
+      "actorEmail": "trailadmin",
+      "actorRole": "admin",
+      "action": "REISSUED_CERTIFICATE",
+      "entityType": "Certificate",
+      "entityId": "LGX-CERT-2026-8401",
+      "details": "Re-issued certificate LGX-CERT-2026-8401 for Hamza Ahmed."
+    },
+    {
+      "id": "aud-1792017008430-5kq1",
+      "timestamp": "2026-10-14T22:30:08.430Z",
+      "actorName": "Trail Admin",
+      "actorEmail": "trailadmin",
+      "actorRole": "admin",
+      "action": "REISSUED_CERTIFICATE",
+      "entityType": "Certificate",
+      "entityId": "LGX-CERT-2026-8401",
+      "details": "Re-issued certificate LGX-CERT-2026-8401 for Hamza Ahmed."
+    },
+    {
+      "id": "aud-1792016719704-a2jt",
+      "timestamp": "2026-10-14T22:25:19.704Z",
+      "actorName": "Trail Admin",
+      "actorEmail": "trailadmin",
+      "actorRole": "admin",
+      "action": "USER_LOGIN",
+      "entityType": "Auth",
+      "entityId": "usr-trailadmin",
+      "details": "Trail Admin (admin) signed in to the portal."
+    },
+    {
+      "id": "aud-1792016388991-sesr",
+      "timestamp": "2026-10-14T22:19:48.991Z",
+      "actorName": "Trail Intern",
+      "actorEmail": "trailintern",
+      "actorRole": "intern",
+      "action": "USER_LOGIN",
+      "entityType": "Auth",
+      "entityId": "usr-trailintern",
+      "details": "Trail Intern (intern) signed in to the portal."
+    },
+    {
+      "id": "aud-1792016352295-nrl9",
+      "timestamp": "2026-10-14T22:19:12.295Z",
+      "actorName": "Trail Supervisor",
+      "actorEmail": "trailsupervisor",
+      "actorRole": "mentor",
+      "action": "USER_LOGIN",
+      "entityType": "Auth",
+      "entityId": "usr-trailsupervisor",
+      "details": "Trail Supervisor (mentor) signed in to the portal."
+    },
+    {
+      "id": "aud-1792016352205-bzbe",
+      "timestamp": "2026-10-14T22:19:12.205Z",
+      "actorName": "Trail Intern",
+      "actorEmail": "trailintern",
+      "actorRole": "intern",
+      "action": "USER_LOGIN",
+      "entityType": "Auth",
+      "entityId": "usr-trailintern",
+      "details": "Trail Intern (intern) signed in to the portal."
+    },
+    {
+      "id": "aud-1792016352160-wwkb",
+      "timestamp": "2026-10-14T22:19:12.160Z",
+      "actorName": "Trail Admin",
+      "actorEmail": "trailadmin",
+      "actorRole": "admin",
+      "action": "POSTED_ANNOUNCEMENT",
+      "entityType": "Announcement",
+      "entityId": "ann-1792016352160",
+      "details": "Posted announcement 'Test Security Announcement' to All Interns."
+    },
+    {
+      "id": "aud-1792016352149-nmc7",
+      "timestamp": "2026-10-14T22:19:12.149Z",
+      "actorName": "Trail Admin",
+      "actorEmail": "trailadmin",
+      "actorRole": "admin",
+      "action": "USER_LOGIN",
+      "entityType": "Auth",
+      "entityId": "usr-trailadmin",
+      "details": "Trail Admin (admin) signed in to the portal."
+    },
+    {
+      "id": "aud-1792016131212-5s3a",
+      "timestamp": "2026-10-14T22:15:31.212Z",
+      "actorName": "Zainab Tariq (Principal Architect)",
+      "actorEmail": "mentor@logix.dev",
+      "actorRole": "mentor",
+      "action": "USER_LOGIN",
+      "entityType": "Auth",
+      "entityId": "usr-mentor-1",
+      "details": "Zainab Tariq (Principal Architect) (mentor) signed in to the portal."
+    },
+    {
+      "id": "aud-1792016131110-ugdy",
+      "timestamp": "2026-10-14T22:15:31.110Z",
+      "actorName": "Hamza Ahmed",
+      "actorEmail": "intern@logix.dev",
+      "actorRole": "intern",
+      "action": "USER_LOGIN",
+      "entityType": "Auth",
+      "entityId": "usr-intern-demo",
+      "details": "Hamza Ahmed (intern) signed in to the portal."
+    },
+    {
+      "id": "aud-1792016131067-pyg1",
+      "timestamp": "2026-10-14T22:15:31.067Z",
+      "actorName": "Areeba Siddiqui (Program Director)",
+      "actorEmail": "admin@logix.dev",
+      "actorRole": "admin",
+      "action": "POSTED_ANNOUNCEMENT",
+      "entityType": "Announcement",
+      "entityId": "ann-1792016131067",
+      "details": "Posted announcement 'Test Security Announcement' to All Interns."
+    },
+    {
+      "id": "aud-1792016131050-b7pk",
+      "timestamp": "2026-10-14T22:15:31.050Z",
+      "actorName": "Areeba Siddiqui (Program Director)",
+      "actorEmail": "admin@logix.dev",
+      "actorRole": "admin",
+      "action": "USER_LOGIN",
+      "entityType": "Auth",
+      "entityId": "usr-admin-1",
+      "details": "Areeba Siddiqui (Program Director) (admin) signed in to the portal."
+    },
+    {
+      "id": "aud-1792016001754-y4zc",
+      "timestamp": "2026-10-14T22:13:21.754Z",
+      "actorName": "Zainab Tariq (Principal Architect)",
+      "actorEmail": "mentor@logix.dev",
+      "actorRole": "mentor",
+      "action": "USER_LOGIN",
+      "entityType": "Auth",
+      "entityId": "usr-mentor-1",
+      "details": "Zainab Tariq (Principal Architect) (mentor) signed in to the portal."
+    },
+    {
+      "id": "aud-1792016001638-grj0",
+      "timestamp": "2026-10-14T22:13:21.638Z",
+      "actorName": "Hamza Ahmed",
+      "actorEmail": "intern@logix.dev",
+      "actorRole": "intern",
+      "action": "USER_LOGIN",
+      "entityType": "Auth",
+      "entityId": "usr-intern-demo",
+      "details": "Hamza Ahmed (intern) signed in to the portal."
+    },
+    {
+      "id": "aud-1792016001567-inbb",
+      "timestamp": "2026-10-14T22:13:21.567Z",
+      "actorName": "Areeba Siddiqui (Program Director)",
+      "actorEmail": "admin@logix.dev",
+      "actorRole": "admin",
+      "action": "POSTED_ANNOUNCEMENT",
+      "entityType": "Announcement",
+      "entityId": "ann-1792016001567",
+      "details": "Posted announcement 'Test Security Announcement' to All Interns."
+    },
+    {
+      "id": "aud-1792016001552-xptx",
+      "timestamp": "2026-10-14T22:13:21.553Z",
+      "actorName": "Areeba Siddiqui (Program Director)",
+      "actorEmail": "admin@logix.dev",
+      "actorRole": "admin",
+      "action": "USER_LOGIN",
+      "entityType": "Auth",
+      "entityId": "usr-admin-1",
+      "details": "Areeba Siddiqui (Program Director) (admin) signed in to the portal."
+    },
+    {
+      "id": "aud-1792015418878-2cs2",
+      "timestamp": "2026-10-14T22:03:38.878Z",
+      "actorName": "Trial Intern",
+      "actorEmail": "trailintern@logix.dev",
+      "actorRole": "intern",
+      "action": "USER_LOGIN",
+      "entityType": "Auth",
+      "entityId": "usr-trail-intern",
+      "details": "Trial Intern (intern) signed in to the portal."
+    },
+    {
+      "id": "aud-1791998277912-pdyi",
+      "timestamp": "2026-10-14T17:17:57.912Z",
+      "actorName": "Trial Intern",
+      "actorEmail": "trailintern@logix.dev",
+      "actorRole": "intern",
+      "action": "USER_LOGIN",
+      "entityType": "Auth",
+      "entityId": "usr-trail-intern",
+      "details": "Trial Intern (intern) signed in to the portal."
+    },
+    {
+      "id": "aud-1791998220497-69cg",
+      "timestamp": "2026-10-14T17:17:00.498Z",
+      "actorName": "Trial Administrator",
+      "actorEmail": "trailadmin@logix.dev",
+      "actorRole": "admin",
+      "action": "USER_LOGIN",
+      "entityType": "Auth",
+      "entityId": "usr-trail-admin",
+      "details": "Trial Administrator (admin) signed in to the portal."
+    },
     {
       "id": "aud-1791997364849-kme8",
       "timestamp": "2026-10-14T17:02:44.849Z",
@@ -1589,6 +1883,14 @@
     }
   ],
   "backups": [
+    {
+      "id": "bkp-auto-1792016001426",
+      "timestamp": "2026-10-14T22:13:21.426Z",
+      "label": "Automatic Daily Backup (2026-10-14)",
+      "recordCount": 32,
+      "sizeBytes": 52462,
+      "createdBy": "system"
+    },
     {
       "id": "bkp-1",
       "timestamp": "2026-10-12T00:00:00Z",

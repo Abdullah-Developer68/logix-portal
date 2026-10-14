@@ -39,6 +39,8 @@ export function MentorDashboard({
     "High",
   );
   const [taskAttachment, setTaskAttachment] = useState("");
+  const [taskAttachmentStorageKey, setTaskAttachmentStorageKey] = useState("");
+  const [taskAttachmentUploading, setTaskAttachmentUploading] = useState(false);
 
   // Task Review State
   const [reviewComments, setReviewComments] = useState<Record<string, string>>(
@@ -66,6 +68,7 @@ export function MentorDashboard({
       deadline: taskDeadline,
       priority: taskPriority,
       attachmentName: taskAttachment,
+      attachmentStorageKey: taskAttachmentStorageKey,
       actorName: mentorName,
       actorEmail: mentorEmail,
       actorRole: "mentor",
@@ -74,6 +77,28 @@ export function MentorDashboard({
       setTaskTitle("");
       setTaskDesc("");
       setTaskAttachment("");
+      setTaskAttachmentStorageKey("");
+    }
+  };
+
+  const handleTaskAttachment = async (file: File | undefined) => {
+    if (!file) return;
+    setTaskAttachmentUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("kind", "task_attachment");
+      const response = await fetch("/api/uploads", { method: "POST", body: formData });
+      const result = (await response.json()) as { storageKey?: string; error?: string };
+      if (!response.ok || !result.storageKey) {
+        throw new Error(result.error || "Attachment upload failed.");
+      }
+      setTaskAttachment(file.name);
+      setTaskAttachmentStorageKey(result.storageKey);
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "Attachment upload failed.");
+    } finally {
+      setTaskAttachmentUploading(false);
     }
   };
 
@@ -348,13 +373,18 @@ export function MentorDashboard({
             </div>
             <div className="space-y-1">
               <label className="text-xs font-semibold uppercase text-primary">
-                Attachment Spec / Reference File (Optional)
+                Reference File (Optional)
               </label>
               <Input
-                placeholder="e.g. Architecture-Spec-v2.pdf"
-                value={taskAttachment}
-                onChange={(e) => setTaskAttachment(e.target.value)}
+                  type="file"
+                  accept=".pdf,.zip,.txt,.jpg,.jpeg,.png"
+                  onChange={(e) => void handleTaskAttachment(e.target.files?.[0])}
               />
+                {taskAttachment && (
+                  <p className="text-xs text-muted-foreground">
+                    {taskAttachmentUploading ? "Uploading..." : taskAttachment}
+                  </p>
+                )}
             </div>
             <div className="space-y-1">
               <label className="text-xs font-semibold uppercase text-primary">
@@ -490,4 +520,3 @@ export function MentorDashboard({
     </div>
   );
 }
-

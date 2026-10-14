@@ -68,116 +68,40 @@ export function calculateGrade(
 }
 
 function createSeedDatabase(): PortalDatabase {
-  const trialPasswordHash = hashPassword("12345678", "logix_portal_salt_2026");
-  const adminPasswordHash = hashPassword("Admin@123", "logix_portal_salt_2026");
-  const mentorPasswordHash = hashPassword("Mentor@123", "logix_portal_salt_2026");
-  const internPasswordHash = hashPassword("Intern@123", "logix_portal_salt_2026");
+  const adminPasswordHash = hashPassword("12345678", "trail_admin_salt_2026");
+  const supervisorPasswordHash = hashPassword("12345678", "trail_supervisor_salt_2026");
+  const internPasswordHash = hashPassword("12345678", "trail_intern_salt_2026");
 
   return {
     users: [
       {
-        id: "usr-trail-admin",
-        username: "trailadmin",
-        email: "trailadmin@logix.dev",
-        passwordHash: trialPasswordHash,
-        role: "admin",
-        name: "Trial Administrator",
-        emailVerified: true,
-        createdAt: "2026-10-14T10:00:00Z",
-      },
-      {
-        id: "usr-trail-supervisor",
-        username: "trailsupervisor",
-        email: "trailsupervisor@logix.dev",
-        passwordHash: trialPasswordHash,
-        role: "mentor",
-        name: "Trial Supervisor",
-        emailVerified: true,
-        mentorId: "mnt-trail",
-        createdAt: "2026-10-14T10:00:00Z",
-      },
-      {
-        id: "usr-trail-intern",
-        username: "trailintern",
-        email: "trailintern@logix.dev",
-        passwordHash: trialPasswordHash,
-        role: "intern",
-        name: "Trial Intern",
-        emailVerified: true,
-        internRecordId: "int-trail",
-        createdAt: "2026-10-14T10:00:00Z",
-      },
-      {
-        id: "usr-admin-1",
-        email: "admin@logix.dev",
+        id: "usr-trailadmin",
+        email: "trailadmin",
         passwordHash: adminPasswordHash,
         role: "admin",
-        name: "Areeba Siddiqui (Program Director)",
+        name: "Trail Admin",
         emailVerified: true,
-        createdAt: "2026-01-10T09:00:00Z",
-        lastLoginAt: "2026-10-13T05:00:00Z",
+        createdAt: "2026-10-15T00:00:00Z",
       },
       {
-        id: "usr-mentor-1",
-        email: "mentor@logix.dev",
-        passwordHash: mentorPasswordHash,
+        id: "usr-trailsupervisor",
+        email: "trailsupervisor",
+        passwordHash: supervisorPasswordHash,
         role: "mentor",
-        name: "Zainab Tariq (Principal Architect)",
+        name: "Trail Supervisor",
         emailVerified: true,
         mentorId: "mnt-1",
-        createdAt: "2026-01-15T10:00:00Z",
-        lastLoginAt: "2026-10-12T16:30:00Z",
+        createdAt: "2026-10-15T00:00:00Z",
       },
       {
-        id: "usr-mentor-2",
-        email: "omar.farooq@logix.dev",
-        passwordHash: mentorPasswordHash,
-        role: "mentor",
-        name: "Omar Farooq (Staff AI Engineer)",
-        emailVerified: true,
-        mentorId: "mnt-2",
-        createdAt: "2026-02-01T10:00:00Z",
-      },
-      {
-        id: "usr-mentor-3",
-        email: "sana.malik@logix.dev",
-        passwordHash: mentorPasswordHash,
-        role: "mentor",
-        name: "Sana Malik (Design Systems Lead)",
-        emailVerified: true,
-        mentorId: "mnt-3",
-        createdAt: "2026-02-05T10:00:00Z",
-      },
-      {
-        id: "usr-intern-1",
-        email: "hamza.ahmed@student.edu.pk",
+        id: "usr-trailintern",
+        email: "trailintern",
         passwordHash: internPasswordHash,
         role: "intern",
-        name: "Hamza Ahmed",
+        name: "Trail Intern",
         emailVerified: true,
         internRecordId: "int-1",
-        createdAt: "2026-07-01T08:00:00Z",
-        lastLoginAt: "2026-10-13T04:15:00Z",
-      },
-      {
-        id: "usr-intern-2",
-        email: "ayesha.khan@nust.edu.pk",
-        passwordHash: internPasswordHash,
-        role: "intern",
-        name: "Ayesha Khan",
-        emailVerified: true,
-        internRecordId: "int-2",
-        createdAt: "2026-08-12T11:20:00Z",
-      },
-      {
-        id: "usr-intern-3",
-        email: "bilal.raza@fast.edu.pk",
-        passwordHash: internPasswordHash,
-        role: "intern",
-        name: "Bilal Raza",
-        emailVerified: true,
-        internRecordId: "int-3",
-        createdAt: "2026-06-28T09:00:00Z",
+        createdAt: "2026-10-15T00:00:00Z",
       },
     ],
     fields: [
@@ -331,16 +255,6 @@ function createSeedDatabase(): PortalDatabase {
     ],
     mentors: [
       {
-        id: "mnt-trail",
-        userId: "usr-trail-supervisor",
-        name: "Trial Supervisor",
-        email: "trailsupervisor@logix.dev",
-        title: "Senior Technical Mentor & Supervisor",
-        department: "Web Development",
-        avatarInitials: "TS",
-        bio: "Trial Supervisor for testing evaluations, task assignments, and reviews.",
-      },
-      {
         id: "mnt-1",
         userId: "usr-mentor-1",
         name: "Zainab Tariq",
@@ -372,43 +286,6 @@ function createSeedDatabase(): PortalDatabase {
       },
     ],
     interns: [
-      {
-        id: "int-trail",
-        internId: "LGX-INT-2026-099",
-        userId: "usr-trail-intern",
-        fullName: "Trial Intern",
-        fatherName: "Trial Father",
-        cnicOrStudentId: "42101-9999999-1",
-        email: "trailintern@logix.dev",
-        phone: "+92 300 9999999",
-        city: "Karachi",
-        university: "FAST NUCES",
-        degree: "BS Software Engineering",
-        semester: "7th Semester",
-        cgpa: "3.85",
-        fieldId: "fld-web",
-        fieldName: "Web Development",
-        durationMonths: 3,
-        startPreference: "2026-09-01",
-        startDate: "2026-09-01",
-        endDate: "2026-12-01",
-        batchId: "bat-autumn-26",
-        batchName: "Autumn 2026 Batch",
-        mentorId: "mnt-trail",
-        mentorName: "Trial Supervisor",
-        cvFileName: "Trial_Intern_Resume.pdf",
-        cvFileSize: 245000,
-        skills: ["Next.js", "React", "TypeScript", "Tailwind CSS", "PostgreSQL"],
-        githubUrl: "https://github.com/trailintern",
-        linkedinUrl: "https://linkedin.com/in/trailintern",
-        applicationStatus: "Approved",
-        internshipStatus: "Active",
-        archived: false,
-        progressPercentage: 65,
-        attendancePercentage: 96,
-        appliedAt: "2026-08-15T10:00:00Z",
-        updatedAt: "2026-10-14T10:00:00Z",
-      },
       {
         id: "int-1",
         internId: "LGX-INT-2026-001",
@@ -1227,6 +1104,36 @@ export function writeDb(db: PortalDatabase): PortalDatabase {
   ensureDirectories();
   const updated = recalculateMetrics(db);
   fs.writeFileSync(DB_FILE, JSON.stringify(updated, null, 2), "utf8");
+
+  // Keep one automatic recovery snapshot per UTC day without recursively
+  // calling writeDb through the manual backup path.
+  const today = new Date().toISOString().slice(0, 10);
+  const hasRecentAutomaticBackup = updated.backups.some(
+    (backup) =>
+      backup.label.startsWith("Automatic Daily Backup") &&
+      backup.timestamp.slice(0, 10) === today,
+  );
+  if (!hasRecentAutomaticBackup) {
+    const id = `bkp-auto-${Date.now()}`;
+    const timestamp = new Date().toISOString();
+    const serialized = JSON.stringify(updated, null, 2);
+    fs.writeFileSync(path.join(BACKUP_DIR, `${id}.json`), serialized, "utf8");
+    updated.backups.unshift({
+      id,
+      timestamp,
+      label: `Automatic Daily Backup (${today})`,
+      recordCount:
+        updated.users.length +
+        updated.interns.length +
+        updated.tasks.length +
+        updated.attendance.length +
+        updated.evaluations.length +
+        updated.certificates.length,
+      sizeBytes: Buffer.byteLength(serialized, "utf8"),
+      createdBy: "system",
+    });
+    fs.writeFileSync(DB_FILE, JSON.stringify(updated, null, 2), "utf8");
+  }
   return updated;
 }
 
@@ -1327,4 +1234,3 @@ export function addPortalNotification(
 }
 
 export type { InternRecord };
-

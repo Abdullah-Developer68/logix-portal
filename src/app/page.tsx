@@ -36,7 +36,7 @@ export default function PortalWorkspacePage() {
   const router = useRouter();
   const [db, setDb] = useState<PortalDatabase | null>(null);
   const [loading, setLoading] = useState(true);
-  const [session, setSession] = useState<SessionUser>(() => {
+  const [session, setSession] = useState<SessionUser | null>(() => {
     if (typeof window !== "undefined") {
       try {
         const stored = localStorage.getItem("logix_portal_session");
@@ -46,12 +46,7 @@ export default function PortalWorkspacePage() {
         }
       } catch {}
     }
-    return {
-      id: "usr-admin-1",
-      email: "admin@logix.dev",
-      role: "admin",
-      name: "Areeba Siddiqui (Program Director)",
-    };
+    return null;
   });
   const [selectedInternId, setSelectedInternId] = useState<string>(() => {
     if (typeof window !== "undefined") {
@@ -74,18 +69,12 @@ export default function PortalWorkspacePage() {
 
   const fetchPortalState = useCallback(async () => {
     try {
-      const token =
-        typeof window !== "undefined"
-          ? localStorage.getItem("logix_portal_token") || ""
-          : "";
       const res = await fetch("/api/portal", {
         cache: "no-store",
-        headers: token ? { "x-portal-token": token } : {},
       });
       const data = await res.json();
       if (!res.ok || data.authenticated === false) {
         localStorage.removeItem("logix_portal_session");
-        localStorage.removeItem("logix_portal_token");
         router.push("/login");
         return;
       }
@@ -114,21 +103,18 @@ export default function PortalWorkspacePage() {
     let ignore = false;
     const init = async () => {
       const stored = localStorage.getItem("logix_portal_session");
-      const token = localStorage.getItem("logix_portal_token");
-      if (!stored && !token) {
+      if (!stored) {
         router.push("/login");
         return;
       }
       try {
         const res = await fetch("/api/portal", {
           cache: "no-store",
-          headers: token ? { "x-portal-token": token } : {},
         });
         const data = await res.json();
         if (ignore) return;
         if (!res.ok || data.authenticated === false) {
           localStorage.removeItem("logix_portal_session");
-          localStorage.removeItem("logix_portal_token");
           router.push("/login");
           return;
         }
@@ -170,7 +156,6 @@ export default function PortalWorkspacePage() {
       setSecondsLeft((prev) => {
         if (prev <= 1) {
           localStorage.removeItem("logix_portal_session");
-          localStorage.removeItem("logix_portal_token");
           router.push("/login");
           return 0;
         }
@@ -191,12 +176,10 @@ export default function PortalWorkspacePage() {
   ): Promise<boolean> => {
     setToast(null);
     try {
-      const token = localStorage.getItem("logix_portal_token") || "";
       const res = await fetch("/api/portal", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { "x-portal-token": token } : {}),
         },
         body: JSON.stringify(payload),
       });
@@ -233,11 +216,10 @@ export default function PortalWorkspacePage() {
       });
     } catch {}
     localStorage.removeItem("logix_portal_session");
-    localStorage.removeItem("logix_portal_token");
     router.push("/login");
   };
 
-  if (loading || !db) {
+  if (loading || !db || !session) {
     return (
       <div className="flex min-h-screen flex-col">
         <PortalHeader />

@@ -48,6 +48,7 @@ export function InternDashboard({
   const [selectedTask, setSelectedTask] = useState<TaskItem | null>(null);
   const [submissionLink, setSubmissionLink] = useState("");
   const [submissionFileName, setSubmissionFileName] = useState("");
+  const [submissionFile, setSubmissionFile] = useState<File | null>(null);
   const [submissionNotes, setSubmissionNotes] = useState("");
 
   // Leave request state
@@ -92,11 +93,26 @@ export function InternDashboard({
   const handleTaskSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedTask) return;
+    if (!submissionLink.trim() && !submissionFile) return;
+    let submissionStorageKey = "";
+    if (submissionFile) {
+      const formData = new FormData();
+      formData.append("file", submissionFile);
+      formData.append("kind", "task_submission");
+      const uploadResponse = await fetch("/api/uploads", {
+        method: "POST",
+        body: formData,
+      });
+      const uploadData = await uploadResponse.json();
+      if (!uploadResponse.ok) return;
+      submissionStorageKey = uploadData.storageKey;
+    }
     const ok = await onMutate({
       action: "submit_task",
       taskId: selectedTask.id,
       submissionLink,
-      submissionFileName: submissionFileName || "deliverable-bundle.zip",
+      submissionFileName: submissionFile?.name || submissionFileName,
+      submissionStorageKey,
       submissionNotes,
       actorName: intern.fullName,
       actorEmail: intern.email,
@@ -106,6 +122,7 @@ export function InternDashboard({
       setSelectedTask(null);
       setSubmissionLink("");
       setSubmissionFileName("");
+      setSubmissionFile(null);
       setSubmissionNotes("");
     }
   };
@@ -554,10 +571,9 @@ export function InternDashboard({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-xs font-semibold uppercase text-primary">
-                      GitHub PR / Deployment Link *
+                      GitHub PR / Deployment Link
                     </label>
                     <Input
-                      required
                       placeholder="https://github.com/..."
                       value={submissionLink}
                       onChange={(e) => setSubmissionLink(e.target.value)}
@@ -565,12 +581,16 @@ export function InternDashboard({
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-semibold uppercase text-primary">
-                      Attachment Filename (Optional)
+                      Attachment (Optional)
                     </label>
                     <Input
-                      placeholder="e.g. sprint-deliverable.zip"
-                      value={submissionFileName}
-                      onChange={(e) => setSubmissionFileName(e.target.value)}
+                      type="file"
+                      accept=".pdf,.zip,.txt,.png,.jpg,.jpeg"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        setSubmissionFile(file);
+                        setSubmissionFileName(file?.name || "");
+                      }}
                     />
                   </div>
                 </div>
@@ -965,4 +985,3 @@ export function InternDashboard({
     </div>
   );
 }
-

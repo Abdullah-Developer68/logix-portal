@@ -55,6 +55,7 @@ export default function ApplyPage() {
 
   // Uploads & Links
   const [cvFile, setCvFile] = useState<File | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [coverLetter, setCoverLetter] = useState("");
   const [skillsInput, setSkillsInput] = useState(
     "Next.js, React, TypeScript, Tailwind CSS",
@@ -62,7 +63,6 @@ export default function ApplyPage() {
   const [githubUrl, setGithubUrl] = useState("");
   const [linkedinUrl, setLinkedinUrl] = useState("");
   const [portfolioUrl, setPortfolioUrl] = useState("");
-  const [password, setPassword] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -140,6 +140,25 @@ export default function ApplyPage() {
     setError(null);
 
     try {
+      const upload = async (file: File, kind: "application_cv" | "application_photo") => {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("kind", kind);
+        const uploadResponse = await fetch("/api/uploads", {
+          method: "POST",
+          body: formData,
+        });
+        const uploadData = await uploadResponse.json();
+        if (!uploadResponse.ok) {
+          throw new Error(uploadData.error || "File upload failed");
+        }
+        return uploadData.storageKey as string;
+      };
+
+      const cvStorageKey = await upload(cvFile, "application_cv");
+      const photoStorageKey = photoFile
+        ? await upload(photoFile, "application_photo")
+        : "";
       const res = await fetch("/api/portal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -151,7 +170,7 @@ export default function ApplyPage() {
           email,
           phone,
           city,
-          photoUrl: photoFileName,
+          photoUrl: photoStorageKey,
           university,
           degree,
           semester,
@@ -162,31 +181,18 @@ export default function ApplyPage() {
           batchId,
           cvFileName: cvFile.name,
           cvFileSize: cvFile.size,
+          cvStorageKey,
           coverLetter,
           skills: skillsInput,
           githubUrl,
           linkedinUrl,
           portfolioUrl,
-          password: password || "Intern@123",
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Application submission failed");
 
       setSubmittedIntern(data.intern);
-      // Save session so applicant can jump directly into Intern Dashboard
-      localStorage.setItem(
-        "logix_portal_session",
-        JSON.stringify({
-          id: data.intern.userId || `usr-${Date.now()}`,
-          email: data.intern.email,
-          role: "intern",
-          name: data.intern.fullName,
-          emailVerified: true,
-          internRecordId: data.intern.id,
-          loginTime: Date.now(),
-        }),
-      );
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to submit application",
@@ -275,10 +281,10 @@ export default function ApplyPage() {
                   type="button"
                   variant="brand"
                   size="lg"
-                  onClick={() => router.push("/portal")}
+                  onClick={() => router.push("/login?role=intern")}
                   className="w-full sm:w-auto font-semibold cursor-pointer"
                 >
-                  Open My Intern Dashboard →
+                  Continue to Sign In →
                 </Button>
                 <ButtonLink
                   href="/"
@@ -395,7 +401,10 @@ export default function ApplyPage() {
                       className="hidden"
                       onChange={(e) => {
                         const f = e.target.files?.[0];
-                        if (f) setPhotoFileName(f.name);
+                        if (f) {
+                          setPhotoFile(f);
+                          setPhotoFileName(f.name);
+                        }
                       }}
                     />
                     <button
@@ -688,17 +697,6 @@ export default function ApplyPage() {
                       />
                     </div>
 
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold uppercase tracking-wider text-primary">
-                        Set Portal Account Password (Optional)
-                      </label>
-                      <Input
-                        type="password"
-                        placeholder="Leave blank to use default demo password (Intern@123)"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                      />
-                    </div>
                   </div>
                 </div>
 
@@ -729,4 +727,3 @@ export default function ApplyPage() {
     </div>
   );
 }
-

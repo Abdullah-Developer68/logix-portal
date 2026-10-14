@@ -111,6 +111,7 @@ export interface InternRecord {
   // Uploads & Links
   cvFileName: string;
   cvFileSize: number;
+  cvStorageKey?: string;
   coverLetter?: string;
   skills: string[];
   githubUrl?: string;
@@ -141,9 +142,11 @@ export interface TaskItem {
   priority: "Low" | "Medium" | "High";
   attachmentName?: string;
   attachmentUrl?: string;
+  attachmentStorageKey?: string;
   status: TaskStatus;
   submissionLink?: string;
   submissionFileName?: string;
+  submissionStorageKey?: string;
   submissionNotes?: string;
   submittedAt?: string;
   mentorComments?: string;
@@ -311,4 +314,3 @@ export interface PortalDatabase {
   auditLogs: AuditLogEntry[];
   backups: BackupSnapshot[];
 }
-
