@@ -252,14 +252,22 @@ export async function POST(request: NextRequest) {
       // 3.1 AUTHENTICATION & ACCESS
       // ==========================================================
       case "login": {
-        const email = sanitizeText(body.email).toLowerCase();
+        const identifier = sanitizeText(body.email || body.username)
+          .toLowerCase()
+          .trim();
         const password = String(body.password || "");
         const expectedRole = body.expectedRole as UserRole | undefined;
 
-        const user = db.users.find((u) => u.email.toLowerCase() === email);
+        const user = db.users.find(
+          (u) =>
+            u.email.toLowerCase() === identifier ||
+            (u.username && u.username.toLowerCase() === identifier) ||
+            u.email.toLowerCase() === `${identifier}@logix.dev` ||
+            u.email.toLowerCase().startsWith(`${identifier}@`),
+        );
         if (!user || !verifyPassword(password, user.passwordHash)) {
           return NextResponse.json(
-            { error: "Invalid email or password. Please check your credentials." },
+            { error: "Invalid username/email or password. Please check your credentials." },
             { status: 401 },
           );
         }

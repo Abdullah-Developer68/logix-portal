@@ -401,18 +401,18 @@ function LoginContent() {
                       htmlFor="login-email"
                       className="text-xs font-semibold uppercase tracking-wider text-primary"
                     >
-                      {roleTab.toUpperCase()} EMAIL ADDRESS
+                      {roleTab.toUpperCase()} USERNAME OR EMAIL
                     </label>
                     <Input
                       id="login-email"
-                      type="email"
+                      type="text"
                       required
                       placeholder={
                         roleTab === "admin"
-                          ? "admin@logix.dev"
+                          ? "trailadmin (or admin@logix.dev)"
                           : roleTab === "mentor"
-                            ? "mentor@logix.dev"
-                            : "hamza.ahmed@student.edu.pk"
+                            ? "trailsupervisor (or mentor@logix.dev)"
+                            : "trailintern (or intern@logix.dev)"
                       }
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
@@ -685,6 +685,78 @@ function LoginContent() {
                 </p>
 
                 <div className="mt-5 space-y-3">
+                  {/* TRIAL ACCOUNTS */}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleQuickDemoLogin("admin", "trailadmin", "12345678")
+                    }
+                    className="w-full text-left rounded-xl border border-brand/40 bg-brand/10 hover:bg-brand/20 p-3.5 transition-all flex items-center justify-between group cursor-pointer shadow-sm"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-white">
+                          trialadmin (Administrator)
+                        </span>
+                        <Badge variant="brand">Trial Admin</Badge>
+                      </div>
+                      <p className="text-xs text-white/80 mt-0.5 font-mono">
+                        trailadmin · 12345678
+                      </p>
+                    </div>
+                    <ArrowRight className="size-4 text-brand group-hover:translate-x-1 transition-transform" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleQuickDemoLogin(
+                        "mentor",
+                        "trailsupervisor",
+                        "12345678",
+                      )
+                    }
+                    className="w-full text-left rounded-xl border border-brand/40 bg-brand/10 hover:bg-brand/20 p-3.5 transition-all flex items-center justify-between group cursor-pointer shadow-sm"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-white">
+                          trailsupervisor (Supervisor)
+                        </span>
+                        <Badge variant="secondary">Trial Supervisor</Badge>
+                      </div>
+                      <p className="text-xs text-white/80 mt-0.5 font-mono">
+                        trailsupervisor · 12345678
+                      </p>
+                    </div>
+                    <ArrowRight className="size-4 text-brand group-hover:translate-x-1 transition-transform" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleQuickDemoLogin(
+                        "intern",
+                        "trailintern",
+                        "12345678",
+                      )
+                    }
+                    className="w-full text-left rounded-xl border border-brand/40 bg-brand/10 hover:bg-brand/20 p-3.5 transition-all flex items-center justify-between group cursor-pointer shadow-sm"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-white">
+                          trailintern (Active Intern)
+                        </span>
+                        <Badge variant="brand">Trial Intern</Badge>
+                      </div>
+                      <p className="text-xs text-white/80 mt-0.5 font-mono">
+                        trailintern · 12345678
+                      </p>
+                    </div>
+                    <ArrowRight className="size-4 text-brand group-hover:translate-x-1 transition-transform" />
+                  </button>
+
                   <button
                     type="button"
                     onClick={() =>

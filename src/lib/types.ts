@@ -25,6 +25,7 @@ export type CertificateStatus = "Valid" | "Revoked" | "Re-issued";
 export interface UserAccount {
   id: string;
   email: string;
+  username?: string;
   passwordHash: string;
   role: UserRole;
   name: string;

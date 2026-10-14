@@ -1,6 +1,41 @@
 {
   "users": [
     {
+      "id": "usr-trail-admin",
+      "username": "trailadmin",
+      "email": "trailadmin@logix.dev",
+      "passwordHash": "scrypt:logix_portal_salt_2026:8f7c32ee1f0c050b6eb9bfdc2514abfc72a7ed7701bda4c08bb56a32ae042eac",
+      "role": "admin",
+      "name": "Trial Administrator",
+      "emailVerified": true,
+      "createdAt": "2026-10-14T10:00:00Z",
+      "lastLoginAt": "2026-10-14T17:02:44.782Z"
+    },
+    {
+      "id": "usr-trail-supervisor",
+      "username": "trailsupervisor",
+      "email": "trailsupervisor@logix.dev",
+      "passwordHash": "scrypt:logix_portal_salt_2026:8f7c32ee1f0c050b6eb9bfdc2514abfc72a7ed7701bda4c08bb56a32ae042eac",
+      "role": "mentor",
+      "name": "Trial Supervisor",
+      "emailVerified": true,
+      "mentorId": "mnt-trail",
+      "createdAt": "2026-10-14T10:00:00Z",
+      "lastLoginAt": "2026-10-14T17:02:44.815Z"
+    },
+    {
+      "id": "usr-trail-intern",
+      "username": "trailintern",
+      "email": "trailintern@logix.dev",
+      "passwordHash": "scrypt:logix_portal_salt_2026:8f7c32ee1f0c050b6eb9bfdc2514abfc72a7ed7701bda4c08bb56a32ae042eac",
+      "role": "intern",
+      "name": "Trial Intern",
+      "emailVerified": true,
+      "internRecordId": "int-trail",
+      "createdAt": "2026-10-14T10:00:00Z",
+      "lastLoginAt": "2026-10-14T17:02:44.849Z"
+    },
+    {
       "id": "usr-admin-1",
       "email": "admin@logix.dev",
       "passwordHash": "scrypt:logix_portal_salt_2026:6259775de9834c4112d370ed6e6a6d576840f6ac6ade858bd857bb554c37a688",
@@ -8,7 +43,7 @@
       "name": "Areeba Siddiqui (Program Director)",
       "emailVerified": true,
       "createdAt": "2026-01-10T09:00:00Z",
-      "lastLoginAt": "2026-10-14T16:33:19.595Z"
+      "lastLoginAt": "2026-10-14T17:02:44.600Z"
     },
     {
       "id": "usr-mentor-1",
@@ -19,7 +54,7 @@
       "emailVerified": true,
       "mentorId": "mnt-1",
       "createdAt": "2026-01-15T10:00:00Z",
-      "lastLoginAt": "2026-10-14T16:33:19.696Z"
+      "lastLoginAt": "2026-10-14T17:02:44.724Z"
     },
     {
       "id": "usr-mentor-2",
@@ -50,7 +85,7 @@
       "emailVerified": true,
       "internRecordId": "int-1",
       "createdAt": "2026-07-01T08:00:00Z",
-      "lastLoginAt": "2026-10-14T16:33:19.636Z"
+      "lastLoginAt": "2026-10-14T17:02:44.652Z"
     },
     {
       "id": "usr-intern-1",
@@ -92,7 +127,7 @@
       "podName": "Web Platform Pod",
       "description": "Full-stack modern web engineering using Next.js App Router, React 19, TypeScript, Tailwind CSS, and scalable APIs.",
       "totalSeats": 25,
-      "filledSeats": 1,
+      "filledSeats": 2,
       "active": true,
       "defaultSkills": [
         "Next.js",
@@ -277,6 +312,16 @@
   ],
   "mentors": [
     {
+      "id": "mnt-trail",
+      "userId": "usr-trail-supervisor",
+      "name": "Trial Supervisor",
+      "email": "trailsupervisor@logix.dev",
+      "title": "Senior Technical Mentor & Supervisor",
+      "department": "Web Development",
+      "avatarInitials": "TS",
+      "bio": "Trial Supervisor for testing evaluations, task assignments, and reviews."
+    },
+    {
       "id": "mnt-1",
       "userId": "usr-mentor-1",
       "name": "Zainab Tariq",
@@ -308,6 +353,49 @@
     }
   ],
   "interns": [
+    {
+      "id": "int-trail",
+      "internId": "LGX-INT-2026-099",
+      "userId": "usr-trail-intern",
+      "fullName": "Trial Intern",
+      "fatherName": "Trial Father",
+      "cnicOrStudentId": "42101-9999999-1",
+      "email": "trailintern@logix.dev",
+      "phone": "+92 300 9999999",
+      "city": "Karachi",
+      "university": "FAST NUCES",
+      "degree": "BS Software Engineering",
+      "semester": "7th Semester",
+      "cgpa": "3.85",
+      "fieldId": "fld-web",
+      "fieldName": "Web Development",
+      "durationMonths": 3,
+      "startPreference": "2026-09-01",
+      "startDate": "2026-09-01",
+      "endDate": "2026-12-01",
+      "batchId": "bat-autumn-26",
+      "batchName": "Autumn 2026 Batch",
+      "mentorId": "mnt-trail",
+      "mentorName": "Trial Supervisor",
+      "cvFileName": "Trial_Intern_Resume.pdf",
+      "cvFileSize": 245000,
+      "skills": [
+        "Next.js",
+        "React",
+        "TypeScript",
+        "Tailwind CSS",
+        "PostgreSQL"
+      ],
+      "githubUrl": "https://github.com/trailintern",
+      "linkedinUrl": "https://linkedin.com/in/trailintern",
+      "applicationStatus": "Approved",
+      "internshipStatus": "Active",
+      "archived": false,
+      "progressPercentage": 50,
+      "attendancePercentage": 100,
+      "appliedAt": "2026-08-15T10:00:00Z",
+      "updatedAt": "2026-10-14T10:00:00Z"
+    },
     {
       "id": "int-1",
       "internId": "LGX-INT-2026-001",
@@ -611,6 +699,27 @@
   ],
   "tasks": [
     {
+      "id": "tsk-trail-1",
+      "title": "Implement Full-Stack Intern Portal Feature",
+      "description": "Develop and verify end-to-end task assignment and progress dashboard with Drizzle ORM and Postgres.",
+      "internRecordId": "int-trail",
+      "internId": "LGX-INT-2026-099",
+      "internName": "Trial Intern",
+      "fieldName": "Web Development",
+      "assignedByMentorId": "mnt-trail",
+      "assignedByName": "Trial Supervisor",
+      "deadline": "2026-10-25",
+      "priority": "High",
+      "attachmentName": "portal-specification.pdf",
+      "status": "Submitted",
+      "submissionLink": "https://github.com/trailintern/logix-portal",
+      "submissionFileName": "portal-implementation.zip",
+      "submissionNotes": "Completed authentication, role access matrix, and Drizzle models.",
+      "submittedAt": "2026-10-14T12:00:00Z",
+      "mentorComments": "Pending final supervisor code review.",
+      "createdAt": "2026-10-01T09:00:00Z"
+    },
+    {
       "id": "tsk-1",
       "title": "Architect Tokenized UI Component Library (Logix v1.0)",
       "description": "Build Button, Badge, Card, Input, and Modal components matching the Logix Design System v1.0 specifications with full dark mode support.",
@@ -768,6 +877,16 @@
     }
   ],
   "attendance": [
+    {
+      "id": "att-trail-1",
+      "internRecordId": "int-trail",
+      "internId": "LGX-INT-2026-099",
+      "internName": "Trial Intern",
+      "date": "2026-10-14",
+      "status": "Present",
+      "checkInTime": "09:00 AM",
+      "notes": "Daily sprint check-in"
+    },
     {
       "id": "att-1",
       "internRecordId": "int-1",
@@ -931,6 +1050,16 @@
   ],
   "notifications": [
     {
+      "id": "ntf-1791997364609-g1y1",
+      "recipientRole": "all",
+      "title": "Announcement: Test Security Announcement",
+      "message": "Automated security test payload.",
+      "category": "announcement",
+      "read": false,
+      "emailDispatched": true,
+      "createdAt": "2026-10-14T17:02:44.609Z"
+    },
+    {
       "id": "ntf-1791995599601-ht5p",
       "recipientRole": "all",
       "title": "Announcement: Test Security Announcement",
@@ -1037,6 +1166,16 @@
   ],
   "announcements": [
     {
+      "id": "ann-1791997364609",
+      "title": "Test Security Announcement",
+      "content": "Automated security test payload.",
+      "targetAudience": "All Interns",
+      "priority": "Normal",
+      "authorName": "Areeba Siddiqui (Program Director)",
+      "authorRole": "admin",
+      "createdAt": "2026-10-14T17:02:44.609Z"
+    },
+    {
       "id": "ann-1791995599601",
       "title": "Test Security Announcement",
       "content": "Automated security test payload.",
@@ -1118,6 +1257,83 @@
     }
   ],
   "auditLogs": [
+    {
+      "id": "aud-1791997364849-kme8",
+      "timestamp": "2026-10-14T17:02:44.849Z",
+      "actorName": "Trial Intern",
+      "actorEmail": "trailintern@logix.dev",
+      "actorRole": "intern",
+      "action": "USER_LOGIN",
+      "entityType": "Auth",
+      "entityId": "usr-trail-intern",
+      "details": "Trial Intern (intern) signed in to the portal."
+    },
+    {
+      "id": "aud-1791997364815-7bnd",
+      "timestamp": "2026-10-14T17:02:44.815Z",
+      "actorName": "Trial Supervisor",
+      "actorEmail": "trailsupervisor@logix.dev",
+      "actorRole": "mentor",
+      "action": "USER_LOGIN",
+      "entityType": "Auth",
+      "entityId": "usr-trail-supervisor",
+      "details": "Trial Supervisor (mentor) signed in to the portal."
+    },
+    {
+      "id": "aud-1791997364782-7ak4",
+      "timestamp": "2026-10-14T17:02:44.782Z",
+      "actorName": "Trial Administrator",
+      "actorEmail": "trailadmin@logix.dev",
+      "actorRole": "admin",
+      "action": "USER_LOGIN",
+      "entityType": "Auth",
+      "entityId": "usr-trail-admin",
+      "details": "Trial Administrator (admin) signed in to the portal."
+    },
+    {
+      "id": "aud-1791997364724-l04s",
+      "timestamp": "2026-10-14T17:02:44.724Z",
+      "actorName": "Zainab Tariq (Principal Architect)",
+      "actorEmail": "mentor@logix.dev",
+      "actorRole": "mentor",
+      "action": "USER_LOGIN",
+      "entityType": "Auth",
+      "entityId": "usr-mentor-1",
+      "details": "Zainab Tariq (Principal Architect) (mentor) signed in to the portal."
+    },
+    {
+      "id": "aud-1791997364652-lnjr",
+      "timestamp": "2026-10-14T17:02:44.652Z",
+      "actorName": "Hamza Ahmed",
+      "actorEmail": "intern@logix.dev",
+      "actorRole": "intern",
+      "action": "USER_LOGIN",
+      "entityType": "Auth",
+      "entityId": "usr-intern-demo",
+      "details": "Hamza Ahmed (intern) signed in to the portal."
+    },
+    {
+      "id": "aud-1791997364609-g5u5",
+      "timestamp": "2026-10-14T17:02:44.609Z",
+      "actorName": "Areeba Siddiqui (Program Director)",
+      "actorEmail": "admin@logix.dev",
+      "actorRole": "admin",
+      "action": "POSTED_ANNOUNCEMENT",
+      "entityType": "Announcement",
+      "entityId": "ann-1791997364609",
+      "details": "Posted announcement 'Test Security Announcement' to All Interns."
+    },
+    {
+      "id": "aud-1791997364600-s2j4",
+      "timestamp": "2026-10-14T17:02:44.600Z",
+      "actorName": "Areeba Siddiqui (Program Director)",
+      "actorEmail": "admin@logix.dev",
+      "actorRole": "admin",
+      "action": "USER_LOGIN",
+      "entityType": "Auth",
+      "entityId": "usr-admin-1",
+      "details": "Areeba Siddiqui (Program Director) (admin) signed in to the portal."
+    },
     {
       "id": "aud-1791995599696-dor8",
       "timestamp": "2026-10-14T16:33:19.696Z",

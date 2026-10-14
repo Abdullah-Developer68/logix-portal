@@ -130,6 +130,42 @@ async function runTests() {
     Array.isArray(mentorGet.data.interns)
   );
 
+  // TEST 16: Login with trailadmin (username: trailadmin, password: 12345678)
+  const trailAdminLogin = await post("login", {
+    email: "trailadmin",
+    password: "12345678",
+  });
+  assert(
+    "trailadmin logs in successfully with password 12345678",
+    trailAdminLogin.status === 200 &&
+    trailAdminLogin.data.user?.role === "admin" &&
+    !!trailAdminLogin.data.token
+  );
+
+  // TEST 17: Login with trailsupervisor (username: trailsupervisor, password: 12345678)
+  const trailSupLogin = await post("login", {
+    email: "trailsupervisor",
+    password: "12345678",
+  });
+  assert(
+    "trailsupervisor logs in successfully with password 12345678",
+    trailSupLogin.status === 200 &&
+    trailSupLogin.data.user?.role === "mentor" &&
+    !!trailSupLogin.data.token
+  );
+
+  // TEST 18: Login with trailintern (username: trailintern, password: 12345678)
+  const trailInternLogin = await post("login", {
+    email: "trailintern",
+    password: "12345678",
+  });
+  assert(
+    "trailintern logs in successfully with password 12345678",
+    trailInternLogin.status === 200 &&
+    trailInternLogin.data.user?.role === "intern" &&
+    !!trailInternLogin.data.token
+  );
+
   console.log(`\n=== AUDIT RESULTS: ${passed} PASSED, ${failed} FAILED ===`);
   if (failed > 0) {
     process.exit(1);
