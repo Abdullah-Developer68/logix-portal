@@ -68,12 +68,45 @@ export function calculateGrade(
 }
 
 function createSeedDatabase(): PortalDatabase {
-  const adminPasswordHash = hashPassword("Admin@123");
-  const mentorPasswordHash = hashPassword("Mentor@123");
-  const internPasswordHash = hashPassword("Intern@123");
+  const trialPasswordHash = hashPassword("12345678", "logix_portal_salt_2026");
+  const adminPasswordHash = hashPassword("Admin@123", "logix_portal_salt_2026");
+  const mentorPasswordHash = hashPassword("Mentor@123", "logix_portal_salt_2026");
+  const internPasswordHash = hashPassword("Intern@123", "logix_portal_salt_2026");
 
   return {
     users: [
+      {
+        id: "usr-trail-admin",
+        username: "trailadmin",
+        email: "trailadmin@logix.dev",
+        passwordHash: trialPasswordHash,
+        role: "admin",
+        name: "Trial Administrator",
+        emailVerified: true,
+        createdAt: "2026-10-14T10:00:00Z",
+      },
+      {
+        id: "usr-trail-supervisor",
+        username: "trailsupervisor",
+        email: "trailsupervisor@logix.dev",
+        passwordHash: trialPasswordHash,
+        role: "mentor",
+        name: "Trial Supervisor",
+        emailVerified: true,
+        mentorId: "mnt-trail",
+        createdAt: "2026-10-14T10:00:00Z",
+      },
+      {
+        id: "usr-trail-intern",
+        username: "trailintern",
+        email: "trailintern@logix.dev",
+        passwordHash: trialPasswordHash,
+        role: "intern",
+        name: "Trial Intern",
+        emailVerified: true,
+        internRecordId: "int-trail",
+        createdAt: "2026-10-14T10:00:00Z",
+      },
       {
         id: "usr-admin-1",
         email: "admin@logix.dev",
@@ -298,6 +331,16 @@ function createSeedDatabase(): PortalDatabase {
     ],
     mentors: [
       {
+        id: "mnt-trail",
+        userId: "usr-trail-supervisor",
+        name: "Trial Supervisor",
+        email: "trailsupervisor@logix.dev",
+        title: "Senior Technical Mentor & Supervisor",
+        department: "Web Development",
+        avatarInitials: "TS",
+        bio: "Trial Supervisor for testing evaluations, task assignments, and reviews.",
+      },
+      {
         id: "mnt-1",
         userId: "usr-mentor-1",
         name: "Zainab Tariq",
@@ -329,6 +372,43 @@ function createSeedDatabase(): PortalDatabase {
       },
     ],
     interns: [
+      {
+        id: "int-trail",
+        internId: "LGX-INT-2026-099",
+        userId: "usr-trail-intern",
+        fullName: "Trial Intern",
+        fatherName: "Trial Father",
+        cnicOrStudentId: "42101-9999999-1",
+        email: "trailintern@logix.dev",
+        phone: "+92 300 9999999",
+        city: "Karachi",
+        university: "FAST NUCES",
+        degree: "BS Software Engineering",
+        semester: "7th Semester",
+        cgpa: "3.85",
+        fieldId: "fld-web",
+        fieldName: "Web Development",
+        durationMonths: 3,
+        startPreference: "2026-09-01",
+        startDate: "2026-09-01",
+        endDate: "2026-12-01",
+        batchId: "bat-autumn-26",
+        batchName: "Autumn 2026 Batch",
+        mentorId: "mnt-trail",
+        mentorName: "Trial Supervisor",
+        cvFileName: "Trial_Intern_Resume.pdf",
+        cvFileSize: 245000,
+        skills: ["Next.js", "React", "TypeScript", "Tailwind CSS", "PostgreSQL"],
+        githubUrl: "https://github.com/trailintern",
+        linkedinUrl: "https://linkedin.com/in/trailintern",
+        applicationStatus: "Approved",
+        internshipStatus: "Active",
+        archived: false,
+        progressPercentage: 65,
+        attendancePercentage: 96,
+        appliedAt: "2026-08-15T10:00:00Z",
+        updatedAt: "2026-10-14T10:00:00Z",
+      },
       {
         id: "int-1",
         internId: "LGX-INT-2026-001",
@@ -1115,6 +1195,18 @@ export function recalculateMetrics(db: PortalDatabase): PortalDatabase {
 export function readDb(): PortalDatabase {
   ensureDirectories();
   if (!fs.existsSync(DB_FILE)) {
+    const packagedPath = path.join(process.cwd(), "data", "portal-db.json");
+    if (fs.existsSync(packagedPath)) {
+      try {
+        const raw = fs.readFileSync(packagedPath, "utf8");
+        const parsed = JSON.parse(raw) as PortalDatabase;
+        const seed = recalculateMetrics(parsed);
+        fs.writeFileSync(DB_FILE, JSON.stringify(seed, null, 2), "utf8");
+        return seed;
+      } catch (e) {
+        console.warn("[DB READ PACKAGED ERROR, FALLING BACK TO SEED]", e);
+      }
+    }
     const seed = recalculateMetrics(createSeedDatabase());
     fs.writeFileSync(DB_FILE, JSON.stringify(seed, null, 2), "utf8");
     return seed;
