@@ -233,10 +233,10 @@ export function PortalFooter() {
               </li>
               <li>
                 <Link
-                  href="/verify?cert=LGX-CERT-2026-8401"
-                  className="hover:text-brand transition-colors font-mono text-xs"
+                  href="/verify"
+                  className="hover:text-brand transition-colors"
                 >
-                  Sample: LGX-CERT-2026-8401
+                  QR Credential Lookup
                 </Link>
               </li>
               <li>

@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1794674461743,
+      "tag": "0000_portal_init",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794674462496,
+      "tag": "0001_revoke_public_roles",
+      "breakpoints": true
+    }
+  ]
+}

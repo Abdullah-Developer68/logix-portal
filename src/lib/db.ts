@@ -1,43 +1,70 @@
-import fs from "fs";
-import path from "path";
-import crypto from "crypto";
+import crypto from "node:crypto";
+import { promisify } from "node:util";
+import type postgres from "postgres";
+import { getSql } from "@/db/client";
+import { sendPortalEmail, type EmailPayload } from "./mailer";
+
+type DbQuery = postgres.Sql | postgres.TransactionSql;
 import type {
-  PortalDatabase,
-  InternRecord,
-  EvaluationRecord,
   AuditLogEntry,
+  BackupSnapshot,
+  BatchCohort,
+  DurationOption,
+  EvaluationRecord,
+  FieldDepartment,
+  InternRecord,
+  PortalDatabase,
   UserRole,
 } from "./types";
 
-const DATA_DIR = process.env.VERCEL
-  ? path.join("/tmp", "logix-portal-data")
-  : path.join(process.cwd(), "data");
-const DB_FILE = path.join(DATA_DIR, "portal-db.json");
-const BACKUP_DIR = path.join(DATA_DIR, "backups");
+const scryptAsync = promisify<
+  string | Buffer,
+  string | Buffer,
+  number,
+  crypto.ScryptOptions,
+  Buffer
+>(crypto.scrypt);
 
-export function hashPassword(password: string, customSalt?: string): string {
+const SCRYPT_OPTIONS: crypto.ScryptOptions = { N: 16384, r: 8, p: 1 };
+const SCRYPT_KEYLEN = 32;
+
+export const DUMMY_PASSWORD_HASH =
+  "scrypt:00000000000000000000000000000000:0000000000000000000000000000000000000000000000000000000000000000";
+
+export async function hashPassword(
+  password: string,
+  customSalt?: string,
+): Promise<string> {
+  if (!password || password.length > 128) {
+    throw new Error("Password length out of bounds.");
+  }
   const salt = customSalt || crypto.randomBytes(16).toString("hex");
-  const derived = crypto.scryptSync(password, salt, 32).toString("hex");
-  return `scrypt:${salt}:${derived}`;
+  const derived = await scryptAsync(password, salt, SCRYPT_KEYLEN, SCRYPT_OPTIONS);
+  return `scrypt:${salt}:${derived.toString("hex")}`;
 }
 
-export function verifyPassword(password: string, storedHash: string): boolean {
-  if (!password || !storedHash) return false;
+export async function verifyPassword(
+  password: string,
+  storedHash: string,
+): Promise<boolean> {
+  if (!password || !storedHash || password.length > 128) return false;
   const parts = storedHash.split(":");
-  if (parts.length === 3 && parts[0] === "scrypt") {
-    const salt = parts[1];
-    const expected = parts[2];
-    const derived = crypto.scryptSync(password, salt, 32).toString("hex");
-    try {
-      return crypto.timingSafeEqual(
-        Buffer.from(derived, "hex"),
-        Buffer.from(expected, "hex"),
-      );
-    } catch {
-      return false;
-    }
+  if (parts.length !== 3 || parts[0] !== "scrypt") return false;
+  const [, salt, expectedHex] = parts;
+  if (!salt || !expectedHex) return false;
+
+  try {
+    const derived = await scryptAsync(password, salt, SCRYPT_KEYLEN, SCRYPT_OPTIONS);
+    const expected = Buffer.from(expectedHex, "hex");
+    if (derived.length !== expected.length) return false;
+    return crypto.timingSafeEqual(derived, expected);
+  } catch {
+    return false;
   }
-  return false;
+}
+
+export async function verifyDummyPassword(password: string): Promise<void> {
+  await verifyPassword(password.slice(0, 128) || "dummy", DUMMY_PASSWORD_HASH);
 }
 
 export function sanitizeText(input: unknown): string {
@@ -48,7 +75,10 @@ export function sanitizeText(input: unknown): string {
     .trim();
 }
 
-export function calculateEndDate(startDate: string, durationMonths: number): string {
+export function calculateEndDate(
+  startDate: string,
+  durationMonths: number,
+): string {
   if (!startDate) return "";
   const d = new Date(startDate);
   if (Number.isNaN(d.getTime())) return "";
@@ -67,43 +97,12 @@ export function calculateGrade(
   return "F";
 }
 
-function createSeedDatabase(): PortalDatabase {
-  const adminPasswordHash = hashPassword("12345678", "trail_admin_salt_2026");
-  const supervisorPasswordHash = hashPassword("12345678", "trail_supervisor_salt_2026");
-  const internPasswordHash = hashPassword("12345678", "trail_intern_salt_2026");
-
+function createReferenceSeed(): {
+  fields: FieldDepartment[];
+  durations: DurationOption[];
+  batches: BatchCohort[];
+} {
   return {
-    users: [
-      {
-        id: "usr-trailadmin",
-        email: "trailadmin",
-        passwordHash: adminPasswordHash,
-        role: "admin",
-        name: "Trail Admin",
-        emailVerified: true,
-        createdAt: "2026-10-15T00:00:00Z",
-      },
-      {
-        id: "usr-trailsupervisor",
-        email: "trailsupervisor",
-        passwordHash: supervisorPasswordHash,
-        role: "mentor",
-        name: "Trail Supervisor",
-        emailVerified: true,
-        mentorId: "mnt-1",
-        createdAt: "2026-10-15T00:00:00Z",
-      },
-      {
-        id: "usr-trailintern",
-        email: "trailintern",
-        passwordHash: internPasswordHash,
-        role: "intern",
-        name: "Trail Intern",
-        emailVerified: true,
-        internRecordId: "int-1",
-        createdAt: "2026-10-15T00:00:00Z",
-      },
-    ],
     fields: [
       {
         id: "fld-web",
@@ -113,7 +112,7 @@ function createSeedDatabase(): PortalDatabase {
         description:
           "Full-stack modern web engineering using Next.js App Router, React 19, TypeScript, Tailwind CSS, and scalable APIs.",
         totalSeats: 25,
-        filledSeats: 14,
+        filledSeats: 0,
         active: true,
         defaultSkills: ["Next.js", "React", "TypeScript", "Tailwind CSS", "Node.js"],
       },
@@ -125,7 +124,7 @@ function createSeedDatabase(): PortalDatabase {
         description:
           "Cross-platform mobile engineering with React Native, Flutter, offline-first storage, and native device integrations.",
         totalSeats: 15,
-        filledSeats: 8,
+        filledSeats: 0,
         active: true,
         defaultSkills: ["React Native", "Flutter", "TypeScript", "REST APIs"],
       },
@@ -137,7 +136,7 @@ function createSeedDatabase(): PortalDatabase {
         description:
           "Applied LLM orchestration, RAG pipelines, Python model evaluation, and intelligent workflow automation.",
         totalSeats: 15,
-        filledSeats: 9,
+        filledSeats: 0,
         active: true,
         defaultSkills: ["Python", "PyTorch", "RAG / LLMs", "FastAPI"],
       },
@@ -149,7 +148,7 @@ function createSeedDatabase(): PortalDatabase {
         description:
           "Tokenized design systems in Figma, interactive prototyping, accessibility (WCAG AA), and user research.",
         totalSeats: 12,
-        filledSeats: 6,
+        filledSeats: 0,
         active: true,
         defaultSkills: ["Figma", "Design Systems", "Prototyping", "UX Research"],
       },
@@ -161,7 +160,7 @@ function createSeedDatabase(): PortalDatabase {
         description:
           "End-to-end automated testing with Playwright, API contract validation, performance benchmarking, and CI/CD gates.",
         totalSeats: 10,
-        filledSeats: 4,
+        filledSeats: 0,
         active: true,
         defaultSkills: ["Playwright", "Cypress", "API Testing", "GitHub Actions"],
       },
@@ -173,7 +172,7 @@ function createSeedDatabase(): PortalDatabase {
         description:
           "Technical SEO, product positioning, developer advocacy, conversion analytics, and content campaigns.",
         totalSeats: 10,
-        filledSeats: 3,
+        filledSeats: 0,
         active: true,
         defaultSkills: ["Technical SEO", "Analytics", "Content Strategy", "Copywriting"],
       },
@@ -185,7 +184,7 @@ function createSeedDatabase(): PortalDatabase {
         description:
           "Docker containerization, Kubernetes, Terraform IaC, observability stacks, and zero-downtime cloud deployments.",
         totalSeats: 10,
-        filledSeats: 5,
+        filledSeats: 0,
         active: true,
         defaultSkills: ["Docker", "AWS / GCP", "CI/CD", "Linux"],
       },
@@ -241,7 +240,8 @@ function createSeedDatabase(): PortalDatabase {
         startDate: "2026-09-01",
         endDate: "2026-12-01",
         status: "Active",
-        description: "Fall semester cohort focused on Next.js 16, AI agents, and design systems.",
+        description:
+          "Fall semester cohort focused on Next.js 16, AI agents, and design systems.",
       },
       {
         id: "bat-winter-26",
@@ -253,776 +253,78 @@ function createSeedDatabase(): PortalDatabase {
         description: "Winter 2026 cohort currently accepting student applications.",
       },
     ],
-    mentors: [
-      {
-        id: "mnt-1",
-        userId: "usr-mentor-1",
-        name: "Zainab Tariq",
-        email: "mentor@logix.dev",
-        title: "Principal Full-Stack Architect",
-        department: "Web Development",
-        avatarInitials: "ZT",
-        bio: "11+ years shipping distributed web platforms and design systems at Logix.",
-      },
-      {
-        id: "mnt-2",
-        userId: "usr-mentor-2",
-        name: "Omar Farooq",
-        email: "omar.farooq@logix.dev",
-        title: "Staff AI & ML Engineer",
-        department: "AI / Machine Learning",
-        avatarInitials: "OF",
-        bio: "Leads applied LLM pipelines, vector search infrastructure, and evaluation tooling.",
-      },
-      {
-        id: "mnt-3",
-        userId: "usr-mentor-3",
-        name: "Sana Malik",
-        email: "sana.malik@logix.dev",
-        title: "Lead Product Designer",
-        department: "UI/UX Design",
-        avatarInitials: "SM",
-        bio: "Creator of Logix Design System v1.0; mentors UI/UX and frontend interns.",
-      },
-    ],
-    interns: [
-      {
-        id: "int-1",
-        internId: "LGX-INT-2026-001",
-        userId: "usr-intern-1",
-        fullName: "Hamza Ahmed",
-        fatherName: "Tariq Ahmed",
-        cnicOrStudentId: "42101-8492014-3",
-        email: "hamza.ahmed@student.edu.pk",
-        phone: "+92 300 4129831",
-        city: "Lahore",
-        university: "FAST-NUCES Lahore",
-        degree: "BS Computer Science",
-        semester: "7th Semester",
-        cgpa: "3.78",
-        fieldId: "fld-web",
-        fieldName: "Web Development",
-        durationMonths: 3,
-        startPreference: "2026-07-01",
-        startDate: "2026-07-01",
-        endDate: "2026-10-01",
-        batchId: "bat-summer-26",
-        batchName: "Summer 2026 Batch",
-        mentorId: "mnt-1",
-        mentorName: "Zainab Tariq",
-        cvFileName: "Hamza_Ahmed_FullStack_CV.pdf",
-        cvFileSize: 428000,
-        coverLetter:
-          "Passionate about building tokenized design systems and high-speed Next.js applications.",
-        skills: ["Next.js", "React 19", "TypeScript", "Tailwind CSS", "PostgreSQL"],
-        githubUrl: "https://github.com/hamza-ahmed-dev",
-        linkedinUrl: "https://linkedin.com/in/hamza-ahmed-dev",
-        portfolioUrl: "https://hamza.dev",
-        applicationStatus: "Approved",
-        internshipStatus: "Completed",
-        archived: false,
-        progressPercentage: 100,
-        attendancePercentage: 96,
-        appliedAt: "2026-06-18T10:30:00Z",
-        updatedAt: "2026-10-05T14:20:00Z",
-      },
-      {
-        id: "int-2",
-        internId: "LGX-INT-2026-002",
-        userId: "usr-intern-2",
-        fullName: "Ayesha Khan",
-        fatherName: "Kamran Khan",
-        cnicOrStudentId: "37405-5910284-2",
-        email: "ayesha.khan@nust.edu.pk",
-        phone: "+92 321 9981204",
-        city: "Islamabad",
-        university: "NUST SEECS",
-        degree: "BS Software Engineering",
-        semester: "6th Semester",
-        cgpa: "3.85",
-        fieldId: "fld-ai",
-        fieldName: "AI / Machine Learning",
-        durationMonths: 3,
-        startPreference: "2026-09-01",
-        startDate: "2026-09-01",
-        endDate: "2026-12-01",
-        batchId: "bat-autumn-26",
-        batchName: "Autumn 2026 Batch",
-        mentorId: "mnt-2",
-        mentorName: "Omar Farooq",
-        cvFileName: "Ayesha_Khan_AI_Resume.pdf",
-        cvFileSize: 512000,
-        coverLetter:
-          "Researching RAG evaluation pipelines and agentic tool-use benchmarks at NUST.",
-        skills: ["Python", "LangChain", "PyTorch", "FastAPI", "TypeScript"],
-        githubUrl: "https://github.com/ayesha-ai",
-        linkedinUrl: "https://linkedin.com/in/ayesha-khan-seecs",
-        portfolioUrl: "https://ayeshakhan.ai",
-        applicationStatus: "Approved",
-        internshipStatus: "Active",
-        archived: false,
-        progressPercentage: 67,
-        attendancePercentage: 94,
-        appliedAt: "2026-08-14T09:15:00Z",
-        updatedAt: "2026-10-12T11:00:00Z",
-      },
-      {
-        id: "int-3",
-        internId: "LGX-INT-2026-003",
-        userId: "usr-intern-3",
-        fullName: "Bilal Raza",
-        fatherName: "Raza Mehmood",
-        cnicOrStudentId: "42201-7731902-1",
-        email: "bilal.raza@fast.edu.pk",
-        phone: "+92 333 2194810",
-        city: "Karachi",
-        university: "FAST-NUCES Karachi",
-        degree: "BS Computer Science",
-        semester: "8th Semester",
-        cgpa: "3.64",
-        fieldId: "fld-uiux",
-        fieldName: "UI/UX Design",
-        durationMonths: 3,
-        startPreference: "2026-07-01",
-        startDate: "2026-07-01",
-        endDate: "2026-10-01",
-        batchId: "bat-summer-26",
-        batchName: "Summer 2026 Batch",
-        mentorId: "mnt-3",
-        mentorName: "Sana Malik",
-        cvFileName: "Bilal_Raza_ProductDesign_CV.pdf",
-        cvFileSize: 640000,
-        coverLetter:
-          "Focused on accessible design tokens, micro-interactions, and high-craft Figma component libraries.",
-        skills: ["Figma", "Design Tokens", "Tailwind CSS", "WCAG Accessibility"],
-        githubUrl: "https://github.com/bilal-ui",
-        linkedinUrl: "https://linkedin.com/in/bilal-raza-design",
-        portfolioUrl: "https://bilalraza.design",
-        applicationStatus: "Approved",
-        internshipStatus: "Completed",
-        archived: false,
-        progressPercentage: 100,
-        attendancePercentage: 92,
-        appliedAt: "2026-06-20T13:00:00Z",
-        updatedAt: "2026-10-03T17:00:00Z",
-      },
-      {
-        id: "int-4",
-        internId: "LGX-INT-2026-004",
-        fullName: "Usman Ghani",
-        fatherName: "Abdul Ghani",
-        cnicOrStudentId: "35202-1193847-5",
-        email: "usman.ghani@pucit.edu.pk",
-        phone: "+92 312 7845120",
-        city: "Lahore",
-        university: "PUCIT Lahore",
-        degree: "BS Information Technology",
-        semester: "6th Semester",
-        cgpa: "3.52",
-        fieldId: "fld-app",
-        fieldName: "App Development",
-        durationMonths: 2,
-        startPreference: "2026-09-01",
-        startDate: "2026-09-01",
-        endDate: "2026-11-01",
-        batchId: "bat-autumn-26",
-        batchName: "Autumn 2026 Batch",
-        mentorId: "mnt-1",
-        mentorName: "Zainab Tariq",
-        cvFileName: "Usman_Ghani_Mobile_CV.pdf",
-        cvFileSize: 380000,
-        coverLetter: "Built 3 production React Native apps with offline sync.",
-        skills: ["React Native", "Expo", "TypeScript", "Redux Toolkit"],
-        githubUrl: "https://github.com/usman-mobile",
-        linkedinUrl: "https://linkedin.com/in/usman-ghani",
-        applicationStatus: "Approved",
-        internshipStatus: "Active",
-        archived: false,
-        progressPercentage: 50,
-        attendancePercentage: 89,
-        appliedAt: "2026-08-22T15:40:00Z",
-        updatedAt: "2026-10-11T09:10:00Z",
-      },
-      {
-        id: "int-5",
-        internId: "LGX-INT-2026-005",
-        fullName: "Fatima Noor",
-        fatherName: "Noor Ul Amin",
-        cnicOrStudentId: "61101-9938172-4",
-        email: "fatima.noor@comsats.edu.pk",
-        phone: "+92 345 8192033",
-        city: "Islamabad",
-        university: "COMSATS Islamabad",
-        degree: "BS Computer Science",
-        semester: "5th Semester",
-        cgpa: "3.91",
-        fieldId: "fld-web",
-        fieldName: "Web Development",
-        durationMonths: 6,
-        startPreference: "2026-11-01",
-        startDate: "2026-11-01",
-        endDate: "2027-05-01",
-        batchId: "bat-winter-26",
-        batchName: "Winter 2026 Batch",
-        mentorId: "mnt-1",
-        mentorName: "Zainab Tariq",
-        cvFileName: "Fatima_Noor_CV_2026.pdf",
-        cvFileSize: 495000,
-        coverLetter:
-          "Looking to join the Winter 2026 6-month industrial placement track in Web Development.",
-        skills: ["React", "Next.js", "TypeScript", "GraphQL", "Tailwind CSS"],
-        githubUrl: "https://github.com/fatimanoor-dev",
-        linkedinUrl: "https://linkedin.com/in/fatimanoor-cs",
-        portfolioUrl: "https://fatimanoor.dev",
-        applicationStatus: "Pending",
-        internshipStatus: "Applied",
-        archived: false,
-        progressPercentage: 0,
-        attendancePercentage: 0,
-        appliedAt: "2026-10-11T18:20:00Z",
-        updatedAt: "2026-10-11T18:20:00Z",
-      },
-      {
-        id: "int-6",
-        internId: "LGX-INT-2026-006",
-        fullName: "Daniyal Shah",
-        fatherName: "Syed Salman Shah",
-        cnicOrStudentId: "42301-4481920-9",
-        email: "daniyal.shah@iba.edu.pk",
-        phone: "+92 301 6628194",
-        city: "Karachi",
-        university: "IBA Karachi",
-        degree: "BS Computer Science",
-        semester: "7th Semester",
-        cgpa: "3.71",
-        fieldId: "fld-qa",
-        fieldName: "Software Testing & QA",
-        durationMonths: 3,
-        startPreference: "2026-11-01",
-        startDate: "2026-11-01",
-        endDate: "2027-02-01",
-        batchId: "bat-winter-26",
-        batchName: "Winter 2026 Batch",
-        mentorId: "mnt-1",
-        mentorName: "Zainab Tariq",
-        cvFileName: "Daniyal_Shah_QA_Resume.pdf",
-        cvFileSize: 310000,
-        coverLetter:
-          "Experienced with Playwright E2E test suites and GitHub Actions CI workflows.",
-        skills: ["Playwright", "TypeScript", "API Testing", "Jest"],
-        githubUrl: "https://github.com/daniyal-qa",
-        linkedinUrl: "https://linkedin.com/in/daniyal-shah-iba",
-        applicationStatus: "Pending",
-        internshipStatus: "Applied",
-        archived: false,
-        progressPercentage: 0,
-        attendancePercentage: 0,
-        appliedAt: "2026-10-12T10:05:00Z",
-        updatedAt: "2026-10-12T10:05:00Z",
-      },
-      {
-        id: "int-7",
-        internId: "LGX-INT-2026-007",
-        fullName: "Saad Mansoor",
-        fatherName: "Mansoor Ali",
-        cnicOrStudentId: "35201-6620193-7",
-        email: "saad.mansoor@uet.edu.pk",
-        phone: "+92 322 4401928",
-        city: "Lahore",
-        university: "UET Lahore",
-        degree: "BS Computer Engineering",
-        semester: "5th Semester",
-        cgpa: "3.15",
-        fieldId: "fld-dm",
-        fieldName: "Digital Marketing & Growth",
-        durationMonths: 1,
-        startPreference: "2026-07-01",
-        startDate: "2026-07-01",
-        endDate: "2026-08-01",
-        batchId: "bat-summer-26",
-        batchName: "Summer 2026 Batch",
-        mentorId: "mnt-3",
-        mentorName: "Sana Malik",
-        cvFileName: "Saad_Mansoor_Growth.pdf",
-        cvFileSize: 290000,
-        skills: ["SEO", "Google Analytics", "Content Copywriting"],
-        applicationStatus: "Approved",
-        internshipStatus: "Dropped",
-        archived: false,
-        progressPercentage: 25,
-        attendancePercentage: 55,
-        appliedAt: "2026-06-25T10:00:00Z",
-        updatedAt: "2026-07-22T12:00:00Z",
-      },
-    ],
-    tasks: [
-      {
-        id: "tsk-1",
-        title: "Architect Tokenized UI Component Library (Logix v1.0)",
-        description:
-          "Build Button, Badge, Card, Input, and Modal components matching the Logix Design System v1.0 specifications with full dark mode support.",
-        internRecordId: "int-1",
-        internId: "LGX-INT-2026-001",
-        internName: "Hamza Ahmed",
-        fieldName: "Web Development",
-        assignedByMentorId: "mnt-1",
-        assignedByName: "Zainab Tariq",
-        deadline: "2026-07-25",
-        priority: "High",
-        attachmentName: "Logix-Design-System-v1.pdf",
-        status: "Approved",
-        submissionLink: "https://github.com/Abdullah-Developer68/logix/pull/12",
-        submissionFileName: "ui-components-bundle.zip",
-        submissionNotes:
-          "Implemented all semantic color tokens in globals.css and verified WCAG contrast ratios.",
-        submittedAt: "2026-07-23T18:00:00Z",
-        mentorComments:
-          "Exceptional attention to typography scale and zero layout shift. Approved with full credit.",
-        reviewedAt: "2026-07-24T11:30:00Z",
-        createdAt: "2026-07-05T09:00:00Z",
-      },
-      {
-        id: "tsk-2",
-        title: "Build Responsive Portfolio & Case Studies Filtering Engine",
-        description:
-          "Implement client-side category filtering, case study metric cards, and smooth Framer Motion transitions.",
-        internRecordId: "int-1",
-        internId: "LGX-INT-2026-001",
-        internName: "Hamza Ahmed",
-        fieldName: "Web Development",
-        assignedByMentorId: "mnt-1",
-        assignedByName: "Zainab Tariq",
-        deadline: "2026-08-20",
-        priority: "Medium",
-        status: "Approved",
-        submissionLink: "https://github.com/Abdullah-Developer68/logix/pull/27",
-        submissionNotes: "Completed with keyboard accessible filter tabs and responsive grid.",
-        submittedAt: "2026-08-18T15:20:00Z",
-        mentorComments: "Clean state management and fast rendering.",
-        reviewedAt: "2026-08-19T10:00:00Z",
-        createdAt: "2026-08-01T09:00:00Z",
-      },
-      {
-        id: "tsk-3",
-        title: "Implement Multipart Resume Upload & Nodemailer Notification API",
-        description:
-          "Create Next.js App Router POST endpoint `/api/apply` with file validation (10MB limit) and HTML email dispatch.",
-        internRecordId: "int-1",
-        internId: "LGX-INT-2026-001",
-        internName: "Hamza Ahmed",
-        fieldName: "Web Development",
-        assignedByMentorId: "mnt-1",
-        assignedByName: "Zainab Tariq",
-        deadline: "2026-09-25",
-        priority: "High",
-        status: "Approved",
-        submissionLink: "https://github.com/Abdullah-Developer68/logix/pull/41",
-        submissionNotes: "Added drag-and-drop upload zone and MIME type verification.",
-        submittedAt: "2026-09-22T14:10:00Z",
-        mentorComments: "Production-ready implementation. Great job completing all 3 cohort milestones!",
-        reviewedAt: "2026-09-24T09:45:00Z",
-        createdAt: "2026-09-02T09:00:00Z",
-      },
-      {
-        id: "tsk-4",
-        title: "Benchmark Hybrid Semantic + BM25 Retrieval Pipeline",
-        description:
-          "Evaluate top-k recall accuracy across 500 technical documentation queries and submit latency percentiles.",
-        internRecordId: "int-2",
-        internId: "LGX-INT-2026-002",
-        internName: "Ayesha Khan",
-        fieldName: "AI / Machine Learning",
-        assignedByMentorId: "mnt-2",
-        assignedByName: "Omar Farooq",
-        deadline: "2026-09-28",
-        priority: "High",
-        attachmentName: "RAG-Benchmark-Dataset.json",
-        status: "Approved",
-        submissionLink: "https://github.com/ayesha-ai/logix-rag-eval",
-        submissionNotes: "Achieved 91.4% Recall@5 with reciprocal rank fusion.",
-        submittedAt: "2026-09-26T19:00:00Z",
-        mentorComments: "Thorough evaluation notebook and clean latency charts.",
-        reviewedAt: "2026-09-27T14:00:00Z",
-        createdAt: "2026-09-05T10:00:00Z",
-      },
-      {
-        id: "tsk-5",
-        title: "Streaming Tool-Call Guardrails Middleware",
-        description:
-          "Build schema validation and retry middleware for structured JSON tool calls in Python FastAPI.",
-        internRecordId: "int-2",
-        internId: "LGX-INT-2026-002",
-        internName: "Ayesha Khan",
-        fieldName: "AI / Machine Learning",
-        assignedByMentorId: "mnt-2",
-        assignedByName: "Omar Farooq",
-        deadline: "2026-10-18",
-        priority: "High",
-        status: "Submitted",
-        submissionLink: "https://github.com/ayesha-ai/logix-guardrails/pull/4",
-        submissionNotes: "Implemented Pydantic v2 streaming validator with exponential backoff.",
-        submittedAt: "2026-10-12T17:45:00Z",
-        createdAt: "2026-10-01T10:00:00Z",
-      },
-      {
-        id: "tsk-6",
-        title: "Multi-Agent Evaluation Dashboard UI Integration",
-        description:
-          "Connect the FastAPI evaluation metrics endpoint to a live telemetry view.",
-        internRecordId: "int-2",
-        internId: "LGX-INT-2026-002",
-        internName: "Ayesha Khan",
-        fieldName: "AI / Machine Learning",
-        assignedByMentorId: "mnt-2",
-        assignedByName: "Omar Farooq",
-        deadline: "2026-11-10",
-        priority: "Medium",
-        status: "Assigned",
-        createdAt: "2026-10-10T10:00:00Z",
-      },
-      {
-        id: "tsk-7",
-        title: "Design Token Audit & Dark Mode Contrast Specification",
-        description:
-          "Deliver complete Figma component matrix and token documentation for Logix Portal v1.0.",
-        internRecordId: "int-3",
-        internId: "LGX-INT-2026-003",
-        internName: "Bilal Raza",
-        fieldName: "UI/UX Design",
-        assignedByMentorId: "mnt-3",
-        assignedByName: "Sana Malik",
-        deadline: "2026-09-15",
-        priority: "High",
-        status: "Approved",
-        submissionLink: "https://figma.com/file/logix-design-system-v1",
-        submissionNotes: "All 28 component states documented with light/dark parity.",
-        submittedAt: "2026-09-12T16:00:00Z",
-        mentorComments: "Flawless token hierarchy and developer handoff specs.",
-        reviewedAt: "2026-09-14T11:00:00Z",
-        createdAt: "2026-07-15T09:00:00Z",
-      },
-      {
-        id: "tsk-8",
-        title: "Offline SQLite Sync Layer for Field Service Mobile App",
-        description:
-          "Implement optimistic queue synchronization when mobile device reconnects to network.",
-        internRecordId: "int-4",
-        internId: "LGX-INT-2026-004",
-        internName: "Usman Ghani",
-        fieldName: "App Development",
-        assignedByMentorId: "mnt-1",
-        assignedByName: "Zainab Tariq",
-        deadline: "2026-10-15",
-        priority: "High",
-        status: "Needs Revision",
-        submissionLink: "https://github.com/usman-mobile/field-sync/pull/2",
-        submissionNotes: "Initial queue sync working on Android simulator.",
-        submittedAt: "2026-10-09T13:00:00Z",
-        mentorComments:
-          "Please add idempotency keys to prevent duplicate mutation replay when network flaps.",
-        reviewedAt: "2026-10-10T16:00:00Z",
-        createdAt: "2026-09-20T09:00:00Z",
-      },
-    ],
-    attendance: [
-      {
-        id: "att-1",
-        internRecordId: "int-1",
-        internId: "LGX-INT-2026-001",
-        internName: "Hamza Ahmed",
-        date: "2026-09-28",
-        status: "Present",
-        checkInTime: "09:04 AM",
-        notes: "Completed final sprint review",
-      },
-      {
-        id: "att-2",
-        internRecordId: "int-1",
-        internId: "LGX-INT-2026-001",
-        internName: "Hamza Ahmed",
-        date: "2026-09-29",
-        status: "Present",
-        checkInTime: "08:58 AM",
-        notes: "Codebase handoff documentation",
-      },
-      {
-        id: "att-3",
-        internRecordId: "int-2",
-        internId: "LGX-INT-2026-002",
-        internName: "Ayesha Khan",
-        date: "2026-10-12",
-        status: "Present",
-        checkInTime: "09:12 AM",
-        notes: "Working on streaming tool-call validator",
-      },
-      {
-        id: "att-4",
-        internRecordId: "int-2",
-        internId: "LGX-INT-2026-002",
-        internName: "Ayesha Khan",
-        date: "2026-10-13",
-        status: "Present",
-        checkInTime: "09:01 AM",
-        notes: "Daily standup with AI Pod",
-      },
-      {
-        id: "att-5",
-        internRecordId: "int-4",
-        internId: "LGX-INT-2026-004",
-        internName: "Usman Ghani",
-        date: "2026-10-12",
-        status: "Late",
-        checkInTime: "10:35 AM",
-        notes: "University lab exam in morning",
-      },
-      {
-        id: "att-6",
-        internRecordId: "int-4",
-        internId: "LGX-INT-2026-004",
-        internName: "Usman Ghani",
-        date: "2026-10-13",
-        status: "Present",
-        checkInTime: "09:08 AM",
-        notes: "Implementing idempotency keys per mentor review",
-      },
-    ],
-    leaves: [
-      {
-        id: "lv-1",
-        internRecordId: "int-2",
-        internId: "LGX-INT-2026-002",
-        internName: "Ayesha Khan",
-        startDate: "2026-10-20",
-        endDate: "2026-10-21",
-        reason: "University mid-semester examination at NUST SEECS.",
-        status: "Pending",
-        createdAt: "2026-10-12T14:00:00Z",
-      },
-      {
-        id: "lv-2",
-        internRecordId: "int-1",
-        internId: "LGX-INT-2026-001",
-        internName: "Hamza Ahmed",
-        startDate: "2026-08-14",
-        endDate: "2026-08-15",
-        reason: "Family event in Lahore.",
-        status: "Approved",
-        reviewedBy: "Areeba Siddiqui",
-        reviewedAt: "2026-08-12T10:00:00Z",
-        createdAt: "2026-08-11T09:00:00Z",
-      },
-    ],
-    evaluations: [
-      {
-        id: "evl-1",
-        internRecordId: "int-1",
-        internId: "LGX-INT-2026-001",
-        internName: "Hamza Ahmed",
-        fieldName: "Web Development",
-        mentorId: "mnt-1",
-        mentorName: "Zainab Tariq",
-        technicalSkills: 24,
-        punctuality: 24,
-        communication: 23,
-        teamwork: 25,
-        totalMarks: 96,
-        grade: "A+",
-        remarks:
-          "Hamza demonstrated senior-level ownership across Next.js 16 architecture, Tailwind v4 design tokens, and API security. Highly recommended for a full-time Junior Software Engineer role.",
-        completed: true,
-        evaluatedAt: "2026-10-02T15:00:00Z",
-        internFeedbackRating: 5,
-        internFeedbackComments:
-          "The 1-on-1 code reviews with Zainab and working on real production systems transformed my engineering confidence.",
-        internFeedbackSubmittedAt: "2026-10-03T10:00:00Z",
-      },
-      {
-        id: "evl-2",
-        internRecordId: "int-3",
-        internId: "LGX-INT-2026-003",
-        internName: "Bilal Raza",
-        fieldName: "UI/UX Design",
-        mentorId: "mnt-3",
-        mentorName: "Sana Malik",
-        technicalSkills: 23,
-        punctuality: 22,
-        communication: 24,
-        teamwork: 23,
-        totalMarks: 92,
-        grade: "A+",
-        remarks:
-          "Bilal delivered outstanding component token specs and accessibility audits across all web views.",
-        completed: true,
-        evaluatedAt: "2026-10-02T17:30:00Z",
-        internFeedbackRating: 5,
-        internFeedbackComments:
-          "Loved collaborating with the Design Systems Pod and seeing my Figma tokens live in code.",
-        internFeedbackSubmittedAt: "2026-10-03T12:15:00Z",
-      },
-    ],
-    certificates: [
-      {
-        id: "crt-1",
-        certificateNumber: "LGX-CERT-2026-8401",
-        internRecordId: "int-1",
-        internId: "LGX-INT-2026-001",
-        internName: "Hamza Ahmed",
-        fatherName: "Tariq Ahmed",
-        fieldName: "Web Development",
-        durationMonths: 3,
-        batchName: "Summer 2026 Batch",
-        startDate: "2026-07-01",
-        endDate: "2026-10-01",
-        issueDate: "2026-10-05",
-        grade: "A+",
-        totalMarks: 96,
-        mentorName: "Zainab Tariq",
-        signatoryName: "Areeba Siddiqui",
-        signatoryTitle: "Director of Engineering & Talent, Logix Technologies",
-        status: "Valid",
-        history: [
-          {
-            action: "Issued",
-            timestamp: "2026-10-05T14:20:00Z",
-            actor: "Areeba Siddiqui (Admin)",
-            note: "Issued upon completion of Summer 2026 Batch with Grade A+ (96/100).",
-          },
-        ],
-      },
-    ],
-    notifications: [
-      {
-        id: "ntf-1",
-        recipientRole: "intern",
-        recipientEmail: "hamza.ahmed@student.edu.pk",
-        recipientInternRecordId: "int-1",
-        title: "Official Internship Certificate Issued!",
-        message:
-          "Congratulations Hamza! Your Completion Certificate (LGX-CERT-2026-8401) has been issued and is ready for PDF download with QR verification.",
-        category: "certificate",
-        read: false,
-        emailDispatched: true,
-        createdAt: "2026-10-05T14:20:00Z",
-      },
-      {
-        id: "ntf-2",
-        recipientRole: "intern",
-        recipientEmail: "ayesha.khan@nust.edu.pk",
-        recipientInternRecordId: "int-2",
-        title: "New Task Assigned: Multi-Agent Evaluation Dashboard",
-        message:
-          "Mentor Omar Farooq assigned you a new task due on 2026-11-10.",
-        category: "task",
-        read: false,
-        emailDispatched: true,
-        createdAt: "2026-10-10T10:00:00Z",
-      },
-      {
-        id: "ntf-3",
-        recipientRole: "admin",
-        title: "2 New Internship Applications Pending Review",
-        message:
-          "Fatima Noor (Web Development) and Daniyal Shah (Software Testing & QA) applied for the Winter 2026 Batch.",
-        category: "application",
-        read: false,
-        emailDispatched: true,
-        createdAt: "2026-10-12T10:05:00Z",
-      },
-      {
-        id: "ntf-4",
-        recipientRole: "mentor",
-        title: "Task Submission Pending Review",
-        message:
-          "Ayesha Khan submitted 'Streaming Tool-Call Guardrails Middleware' for mentor review.",
-        category: "task",
-        read: false,
-        emailDispatched: true,
-        createdAt: "2026-10-12T17:45:00Z",
-      },
-    ],
-    announcements: [
-      {
-        id: "ann-1",
-        title: "Winter 2026 Batch Applications & Onboarding Schedule",
-        content:
-          "Onboarding for the Winter 2026 Cohort begins November 1, 2026. All active interns in the Autumn 2026 Batch should ensure mid-term task submissions are uploaded by October 20.",
-        targetAudience: "All Interns",
-        priority: "Important",
-        authorName: "Areeba Siddiqui",
-        authorRole: "admin",
-        createdAt: "2026-10-10T09:00:00Z",
-      },
-      {
-        id: "ann-2",
-        title: "Engineering Demo Day & Certificate Ceremony — Summer 2026",
-        content:
-          "Congratulations to our Summer 2026 graduates! Verified digital certificates and experience letters are now available in your Intern Dashboard.",
-        targetAudience: "Summer 2026 Batch",
-        priority: "Normal",
-        authorName: "Zainab Tariq",
-        authorRole: "mentor",
-        createdAt: "2026-10-05T15:00:00Z",
-      },
-    ],
-    auditLogs: [
-      {
-        id: "aud-1",
-        timestamp: "2026-10-05T14:20:00Z",
-        actorName: "Areeba Siddiqui",
-        actorEmail: "admin@logix.dev",
-        actorRole: "admin",
-        action: "ISSUED_CERTIFICATE",
-        entityType: "Certificate",
-        entityId: "LGX-CERT-2026-8401",
-        details: "Issued verified completion certificate LGX-CERT-2026-8401 to Hamza Ahmed (LGX-INT-2026-001).",
-      },
-      {
-        id: "aud-2",
-        timestamp: "2026-10-02T15:00:00Z",
-        actorName: "Zainab Tariq",
-        actorEmail: "mentor@logix.dev",
-        actorRole: "mentor",
-        action: "COMPLETED_EVALUATION",
-        entityType: "Evaluation",
-        entityId: "evl-1",
-        details: "Submitted final evaluation for Hamza Ahmed: 96/100 (Grade A+).",
-      },
-      {
-        id: "aud-3",
-        timestamp: "2026-10-12T10:05:00Z",
-        actorName: "Daniyal Shah",
-        actorEmail: "daniyal.shah@iba.edu.pk",
-        actorRole: "applicant",
-        action: "SUBMITTED_APPLICATION",
-        entityType: "Application",
-        entityId: "LGX-INT-2026-006",
-        details: "Submitted internship application for Software Testing & QA (3 Months, Winter 2026 Batch).",
-      },
-    ],
-    backups: [
-      {
-        id: "bkp-1",
-        timestamp: "2026-10-12T00:00:00Z",
-        label: "Automatic Daily Snapshot (2026-10-12)",
-        recordCount: 38,
-        sizeBytes: 28410,
-        createdBy: "System Cron",
-      },
-    ],
   };
 }
 
-function ensureDirectories() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+function createEmptyDatabase(): PortalDatabase {
+  return {
+    users: [],
+    fields: [],
+    durations: [],
+    batches: [],
+    mentors: [],
+    interns: [],
+    tasks: [],
+    attendance: [],
+    leaves: [],
+    evaluations: [],
+    certificates: [],
+    notifications: [],
+    announcements: [],
+    auditLogs: [],
+    backups: [],
+  };
+}
+
+const PORTAL_COLLECTIONS = [
+  "users",
+  "fields",
+  "durations",
+  "batches",
+  "mentors",
+  "interns",
+  "tasks",
+  "attendance",
+  "leaves",
+  "evaluations",
+  "certificates",
+  "notifications",
+  "announcements",
+  "auditLogs",
+] as const;
+
+type PortalCollectionKey = (typeof PORTAL_COLLECTIONS)[number];
+
+const PORTAL_COLLECTION_SET = new Set<string>(PORTAL_COLLECTIONS);
+const PORTAL_MUTATION_LOCK_ID = 72638491023481;
+
+const snapshotStore = new WeakMap<PortalDatabase, Map<string, string>>();
+
+function makeSnapshotKey(collection: string, id: string): string {
+  return `${collection}\0${id}`;
+}
+
+function extractRecordCreatedAt(record: Record<string, unknown>): string {
+  const candidates = [
+    record.timestamp,
+    record.createdAt,
+    record.appliedAt,
+    record.evaluatedAt,
+    record.issueDate,
+    record.date,
+  ];
+  for (const val of candidates) {
+    if (typeof val === "string" && val.trim()) {
+      const parsed = new Date(val);
+      if (!Number.isNaN(parsed.getTime())) {
+        return parsed.toISOString();
+      }
+    }
   }
-  if (!fs.existsSync(BACKUP_DIR)) {
-    fs.mkdirSync(BACKUP_DIR, { recursive: true });
-  }
+  return new Date().toISOString();
 }
 
 export function recalculateMetrics(db: PortalDatabase): PortalDatabase {
-  // Recalculate field seat counts
   for (const field of db.fields) {
     field.filledSeats = db.interns.filter(
       (i) =>
@@ -1032,7 +334,6 @@ export function recalculateMetrics(db: PortalDatabase): PortalDatabase {
     ).length;
   }
 
-  // Recalculate progress & attendance percentages for each intern
   for (const intern of db.interns) {
     const internTasks = db.tasks.filter(
       (t) => t.internRecordId === intern.id || t.internId === intern.internId,
@@ -1069,97 +370,246 @@ export function recalculateMetrics(db: PortalDatabase): PortalDatabase {
   return db;
 }
 
-export function readDb(): PortalDatabase {
-  ensureDirectories();
-  if (!fs.existsSync(DB_FILE)) {
-    const packagedPath = path.join(process.cwd(), "data", "portal-db.json");
-    if (fs.existsSync(packagedPath)) {
-      try {
-        const raw = fs.readFileSync(packagedPath, "utf8");
-        const parsed = JSON.parse(raw) as PortalDatabase;
-        const seed = recalculateMetrics(parsed);
-        fs.writeFileSync(DB_FILE, JSON.stringify(seed, null, 2), "utf8");
-        return seed;
-      } catch (e) {
-        console.warn("[DB READ PACKAGED ERROR, FALLING BACK TO SEED]", e);
+export async function loadPortal(tx?: DbQuery): Promise<PortalDatabase> {
+  const conn = tx ?? getSql();
+
+  const [recordRows, backupRows] = await Promise.all([
+    conn<{ collection: string; id: string; data: Record<string, unknown> }[]>`
+      SELECT collection, id, data FROM (
+        SELECT collection, id, data, created_at
+        FROM portal_records
+        WHERE collection NOT IN ('auditLogs', 'notifications')
+        ORDER BY created_at DESC
+      ) base
+      UNION ALL
+      SELECT collection, id, data FROM (
+        SELECT collection, id, data, created_at
+        FROM portal_records
+        WHERE collection = 'auditLogs'
+        ORDER BY created_at DESC
+        LIMIT 300
+      ) aud
+      UNION ALL
+      SELECT collection, id, data FROM (
+        SELECT collection, id, data, created_at
+        FROM portal_records
+        WHERE collection = 'notifications'
+        ORDER BY created_at DESC
+        LIMIT 200
+      ) ntf
+    `,
+    conn<{
+      id: string;
+      created_at: Date | string;
+      label: string | null;
+      created_by: string | null;
+      record_count: number | null;
+      size_bytes: number | null;
+    }[]>`
+      SELECT id, created_at, label, created_by, record_count, size_bytes
+      FROM portal_backups
+      ORDER BY created_at DESC
+    `,
+  ]);
+
+  const db = createEmptyDatabase();
+  const snapshotMap = new Map<string, string>();
+
+  for (const row of recordRows) {
+    if (!PORTAL_COLLECTION_SET.has(row.collection)) continue;
+    const col = row.collection as PortalCollectionKey;
+    const data =
+      typeof row.data === "string"
+        ? (JSON.parse(row.data) as Record<string, unknown>)
+        : row.data;
+    (db[col] as unknown[]).push(data);
+    snapshotMap.set(makeSnapshotKey(col, row.id), JSON.stringify(data));
+  }
+
+  db.durations.sort((a, b) => a.months - b.months);
+
+  db.backups = backupRows.map((b) => ({
+    id: b.id,
+    timestamp:
+      b.created_at instanceof Date
+        ? b.created_at.toISOString()
+        : new Date(b.created_at).toISOString(),
+    label: b.label ?? "",
+    recordCount: b.record_count ?? 0,
+    sizeBytes: b.size_bytes ?? 0,
+    createdBy: b.created_by ?? "system",
+  }));
+
+  snapshotStore.set(db, snapshotMap);
+  return recalculateMetrics(db);
+}
+
+export async function savePortal(
+  tx: DbQuery,
+  db: PortalDatabase,
+): Promise<void> {
+  const prevSnapshot =
+    snapshotStore.get(db) ?? new Map<string, string>();
+  const nextSnapshot = new Map<string, string>();
+
+  const toInsert: {
+    collection: string;
+    id: string;
+    data: Record<string, unknown>;
+    created_at: string;
+  }[] = [];
+  const toUpdate: {
+    collection: string;
+    id: string;
+    data: Record<string, unknown>;
+  }[] = [];
+  const toDelete: { collection: string; id: string }[] = [];
+
+  for (const collection of PORTAL_COLLECTIONS) {
+    const records = db[collection] as unknown as Array<
+      Record<string, unknown> & { id: string }
+    >;
+    for (const record of records) {
+      if (!record || typeof record.id !== "string" || !record.id) continue;
+      const key = makeSnapshotKey(collection, record.id);
+      const serialized = JSON.stringify(record);
+      nextSnapshot.set(key, serialized);
+
+      const prevSerialized = prevSnapshot.get(key);
+      if (prevSerialized === undefined) {
+        toInsert.push({
+          collection,
+          id: record.id,
+          data: record,
+          created_at: extractRecordCreatedAt(record),
+        });
+      } else if (prevSerialized !== serialized) {
+        toUpdate.push({
+          collection,
+          id: record.id,
+          data: record,
+        });
       }
     }
-    const seed = recalculateMetrics(createSeedDatabase());
-    fs.writeFileSync(DB_FILE, JSON.stringify(seed, null, 2), "utf8");
-    return seed;
   }
-  try {
-    const raw = fs.readFileSync(DB_FILE, "utf8");
-    const parsed = JSON.parse(raw) as PortalDatabase;
-    return recalculateMetrics(parsed);
-  } catch (err) {
-    console.error("[DB READ ERROR, RE-SEEDING]", err);
-    const seed = recalculateMetrics(createSeedDatabase());
-    fs.writeFileSync(DB_FILE, JSON.stringify(seed, null, 2), "utf8");
-    return seed;
+
+  for (const key of prevSnapshot.keys()) {
+    if (!nextSnapshot.has(key)) {
+      const sepIdx = key.indexOf("\0");
+      if (sepIdx !== -1) {
+        toDelete.push({
+          collection: key.slice(0, sepIdx),
+          id: key.slice(sepIdx + 1),
+        });
+      }
+    }
   }
+
+  if (toInsert.length > 0) {
+    const payload = JSON.stringify(toInsert);
+    await tx`
+      INSERT INTO portal_records (collection, id, data, created_at, updated_at)
+      SELECT r.collection, r.id, r.data, r.created_at, now()
+      FROM jsonb_to_recordset(${payload}::text::jsonb)
+        AS r(collection text, id text, data jsonb, created_at timestamptz)
+      ON CONFLICT (collection, id) DO UPDATE
+        SET data = EXCLUDED.data,
+            updated_at = now()
+    `;
+  }
+
+  if (toUpdate.length > 0) {
+    const payload = JSON.stringify(toUpdate);
+    await tx`
+      UPDATE portal_records AS p
+      SET data = r.data,
+          updated_at = now()
+      FROM jsonb_to_recordset(${payload}::text::jsonb)
+        AS r(collection text, id text, data jsonb)
+      WHERE p.collection = r.collection
+        AND p.id = r.id
+    `;
+  }
+
+  if (toDelete.length > 0) {
+    const payload = JSON.stringify(toDelete);
+    await tx`
+      DELETE FROM portal_records AS p
+      USING jsonb_to_recordset(${payload}::text::jsonb)
+        AS r(collection text, id text)
+      WHERE p.collection = r.collection
+        AND p.id = r.id
+    `;
+  }
+
+  snapshotStore.set(db, nextSnapshot);
 }
 
-export function writeDb(db: PortalDatabase): PortalDatabase {
-  ensureDirectories();
-  const updated = recalculateMetrics(db);
-  fs.writeFileSync(DB_FILE, JSON.stringify(updated, null, 2), "utf8");
-
-  // Keep one automatic recovery snapshot per UTC day without recursively
-  // calling writeDb through the manual backup path.
-  const today = new Date().toISOString().slice(0, 10);
-  const hasRecentAutomaticBackup = updated.backups.some(
-    (backup) =>
-      backup.label.startsWith("Automatic Daily Backup") &&
-      backup.timestamp.slice(0, 10) === today,
-  );
-  if (!hasRecentAutomaticBackup) {
-    const id = `bkp-auto-${Date.now()}`;
-    const timestamp = new Date().toISOString();
-    const serialized = JSON.stringify(updated, null, 2);
-    fs.writeFileSync(path.join(BACKUP_DIR, `${id}.json`), serialized, "utf8");
-    updated.backups.unshift({
-      id,
-      timestamp,
-      label: `Automatic Daily Backup (${today})`,
-      recordCount:
-        updated.users.length +
-        updated.interns.length +
-        updated.tasks.length +
-        updated.attendance.length +
-        updated.evaluations.length +
-        updated.certificates.length,
-      sizeBytes: Buffer.byteLength(serialized, "utf8"),
-      createdBy: "system",
-    });
-    fs.writeFileSync(DB_FILE, JSON.stringify(updated, null, 2), "utf8");
-  }
-  return updated;
+export interface MutateContext {
+  outbox: EmailPayload[];
+  tx: postgres.TransactionSql;
 }
 
-export function appendAuditLog(
-  db: PortalDatabase,
-  entry: Omit<AuditLogEntry, "id" | "timestamp">,
-) {
-  db.auditLogs.unshift({
-    id: `aud-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-    timestamp: new Date().toISOString(),
-    ...entry,
+export async function readPortal(): Promise<PortalDatabase> {
+  const db = await loadPortal();
+  if (db.fields.length === 0) {
+    const seed = createReferenceSeed();
+    db.fields = seed.fields;
+    if (db.durations.length === 0) db.durations = seed.durations;
+    if (db.batches.length === 0) db.batches = seed.batches;
+  }
+  return recalculateMetrics(db);
+}
+
+export async function mutatePortal<T>(
+  fn: (db: PortalDatabase, ctx: MutateContext) => Promise<T> | T,
+): Promise<T> {
+  const sql = getSql();
+  const outbox: EmailPayload[] = [];
+
+  const result = await sql.begin(async (tx) => {
+    await tx`SELECT pg_advisory_xact_lock(${PORTAL_MUTATION_LOCK_ID})`;
+    const db = await loadPortal(tx);
+
+    if (db.fields.length === 0) {
+      const seed = createReferenceSeed();
+      db.fields = seed.fields;
+      if (db.durations.length === 0) db.durations = seed.durations;
+      if (db.batches.length === 0) db.batches = seed.batches;
+    }
+
+    const res = await fn(db, { outbox, tx });
+    recalculateMetrics(db);
+    await savePortal(tx, db);
+    return res;
   });
+
+  for (const email of outbox) {
+    try {
+      await sendPortalEmail(email);
+    } catch (err) {
+      console.error("[OUTBOX EMAIL ERROR]", err);
+    }
+  }
+
+  return result;
 }
 
-export function createDatabaseBackup(
+export async function createPortalBackup(
+  tx: DbQuery,
   db: PortalDatabase,
   label: string,
   createdBy: string,
-) {
-  ensureDirectories();
-  const id = `bkp-${Date.now()}`;
+): Promise<BackupSnapshot> {
+  const id = `bkp-${Date.now()}-${crypto.randomBytes(3).toString("hex")}`;
   const timestamp = new Date().toISOString();
-  const serialized = JSON.stringify(db, null, 2);
-  const backupFilePath = path.join(BACKUP_DIR, `${id}.json`);
-  fs.writeFileSync(backupFilePath, serialized, "utf8");
 
+  const snapshotObj: Record<string, unknown> = {};
+  for (const col of PORTAL_COLLECTIONS) {
+    snapshotObj[col] = db[col];
+  }
+  const serialized = JSON.stringify(snapshotObj);
+  const sizeBytes = Buffer.byteLength(serialized, "utf8");
   const recordCount =
     db.users.length +
     db.interns.length +
@@ -1167,24 +617,41 @@ export function createDatabaseBackup(
     db.attendance.length +
     db.evaluations.length +
     db.certificates.length;
+  const finalLabel = label || `Manual Backup (${timestamp.slice(0, 10)})`;
 
-  const snapshot = {
+  await tx`
+    INSERT INTO portal_backups (id, created_at, label, created_by, record_count, size_bytes, snapshot)
+    VALUES (${id}, ${timestamp}::timestamptz, ${finalLabel}, ${createdBy}, ${recordCount}, ${sizeBytes}, ${serialized}::text::jsonb)
+  `;
+
+  const meta: BackupSnapshot = {
     id,
     timestamp,
-    label: label || `Manual Backup (${timestamp.slice(0, 10)})`,
+    label: finalLabel,
     recordCount,
-    sizeBytes: Buffer.byteLength(serialized, "utf8"),
+    sizeBytes,
     createdBy,
   };
+  db.backups.unshift(meta);
+  return meta;
+}
 
-  db.backups.unshift(snapshot);
-  writeDb(db);
-  return snapshot;
+export function appendAuditLog(
+  db: PortalDatabase,
+  entry: Omit<AuditLogEntry, "id" | "timestamp">,
+) {
+  db.auditLogs.unshift({
+    id: `aud-${Date.now()}-${crypto.randomBytes(3).toString("hex")}`,
+    timestamp: new Date().toISOString(),
+    ...entry,
+  });
 }
 
 export function generateNextInternId(db: PortalDatabase): string {
+  const year = new Date().getFullYear();
+  const re = new RegExp(`^LGX-INT-${year}-(\\d+)$`);
   const maxNum = db.interns.reduce((max, item) => {
-    const match = item.internId.match(/(\d+)$/);
+    const match = item.internId.match(re);
     if (match) {
       const n = parseInt(match[1], 10);
       return n > max ? n : max;
@@ -1192,12 +659,21 @@ export function generateNextInternId(db: PortalDatabase): string {
     return max;
   }, 0);
   const next = String(maxNum + 1).padStart(3, "0");
-  return `LGX-INT-2026-${next}`;
+  return `LGX-INT-${year}-${next}`;
 }
 
 export function generateCertificateNumber(db: PortalDatabase): string {
-  const base = 8400 + db.certificates.length + 1;
-  return `LGX-CERT-2026-${base}`;
+  const year = new Date().getFullYear();
+  const re = new RegExp(`^LGX-CERT-${year}-(\\d+)$`);
+  const maxNum = db.certificates.reduce((max, cert) => {
+    const match = cert.certificateNumber.match(re);
+    if (match) {
+      const n = parseInt(match[1], 10);
+      return n > max ? n : max;
+    }
+    return max;
+  }, 8400);
+  return `LGX-CERT-${year}-${maxNum + 1}`;
 }
 
 export function addPortalNotification(
@@ -1220,7 +696,7 @@ export function addPortalNotification(
   },
 ) {
   db.notifications.unshift({
-    id: `ntf-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    id: `ntf-${Date.now()}-${crypto.randomBytes(3).toString("hex")}`,
     recipientRole: params.recipientRole,
     recipientEmail: params.recipientEmail,
     recipientInternRecordId: params.recipientInternRecordId,

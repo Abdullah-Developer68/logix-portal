@@ -48,18 +48,21 @@ export default function ApplyPage() {
   const [cgpa, setCgpa] = useState("");
 
   // Internship Choice
-  const [fieldId, setFieldId] = useState("fld-web");
+  const [fieldId, setFieldId] = useState("");
   const [durationMonths, setDurationMonths] = useState(3);
-  const [startPreference, setStartPreference] = useState("2026-11-01");
-  const [batchId, setBatchId] = useState("bat-winter-26");
+  const [startPreference, setStartPreference] = useState(() => {
+    const d = new Date();
+    const diff = (8 - d.getDay()) % 7 || 7;
+    d.setDate(d.getDate() + diff);
+    return d.toISOString().split("T")[0];
+  });
+  const [batchId, setBatchId] = useState("");
 
   // Uploads & Links
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [coverLetter, setCoverLetter] = useState("");
-  const [skillsInput, setSkillsInput] = useState(
-    "Next.js, React, TypeScript, Tailwind CSS",
-  );
+  const [skillsInput, setSkillsInput] = useState("");
   const [githubUrl, setGithubUrl] = useState("");
   const [linkedinUrl, setLinkedinUrl] = useState("");
   const [portfolioUrl, setPortfolioUrl] = useState("");
@@ -85,12 +88,20 @@ export default function ApplyPage() {
           if (activeFields[0]) setFieldId(activeFields[0].id);
         }
         if (data.durations) {
-          setDurations(
-            data.durations.filter((d: DurationOption) => d.active),
+          const activeDurations = data.durations.filter(
+            (d: DurationOption) => d.active,
           );
+          setDurations(activeDurations);
+          if (
+            activeDurations.length > 0 &&
+            !activeDurations.some((d: DurationOption) => d.months === 3)
+          ) {
+            setDurationMonths(activeDurations[0].months);
+          }
         }
         if (data.batches) {
           setBatches(data.batches);
+          if (data.batches[0]) setBatchId(data.batches[0].id);
         }
       })
       .catch(console.error);
@@ -105,6 +116,8 @@ export default function ApplyPage() {
     return d.toISOString().split("T")[0];
   })();
 
+  const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
+
   const handleCvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
@@ -113,8 +126,8 @@ export default function ApplyPage() {
       setError("CV must be a PDF, DOC, or DOCX document.");
       return;
     }
-    if (f.size > 10 * 1024 * 1024) {
-      setError("CV file size cannot exceed 10MB.");
+    if (f.size > MAX_UPLOAD_BYTES) {
+      setError("CV file size cannot exceed 4MB.");
       return;
     }
     setError(null);
@@ -135,12 +148,31 @@ export default function ApplyPage() {
       setError("Please upload your CV / Resume before submitting.");
       return;
     }
+    if (cvFile.size > MAX_UPLOAD_BYTES) {
+      setError("CV file size cannot exceed 4MB.");
+      return;
+    }
+    if (photoFile && photoFile.size > MAX_UPLOAD_BYTES) {
+      setError("Profile photo size cannot exceed 4MB.");
+      return;
+    }
 
     setLoading(true);
     setError(null);
 
     try {
-      const upload = async (file: File, kind: "application_cv" | "application_photo") => {
+      const format429 = (res: Response) => {
+        const retryAfter = res.headers.get("Retry-After");
+        const sec = retryAfter ? Number(retryAfter) : NaN;
+        return Number.isFinite(sec) && sec > 0
+          ? `Too many requests, try again in ${Math.ceil(sec)} seconds.`
+          : "Too many requests, try again in a few moments.";
+      };
+
+      const upload = async (
+        file: File,
+        kind: "application_cv" | "application_photo",
+      ) => {
         const formData = new FormData();
         formData.append("file", file);
         formData.append("kind", kind);
@@ -148,7 +180,10 @@ export default function ApplyPage() {
           method: "POST",
           body: formData,
         });
-        const uploadData = await uploadResponse.json();
+        if (uploadResponse.status === 429) {
+          throw new Error(format429(uploadResponse));
+        }
+        const uploadData = await uploadResponse.json().catch(() => ({}));
         if (!uploadResponse.ok) {
           throw new Error(uploadData.error || "File upload failed");
         }
@@ -189,7 +224,10 @@ export default function ApplyPage() {
           portfolioUrl,
         }),
       });
-      const data = await res.json();
+      if (res.status === 429) {
+        throw new Error(format429(res));
+      }
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Application submission failed");
 
       setSubmittedIntern(data.intern);
@@ -392,7 +430,7 @@ export default function ApplyPage() {
                   {/* Photo Upload */}
                   <div className="mt-4">
                     <label className="text-xs font-semibold uppercase tracking-wider text-primary block mb-1.5">
-                      Profile Photo (Optional)
+                      Profile Photo (Optional · Max 4MB)
                     </label>
                     <input
                       ref={photoInputRef}
@@ -401,10 +439,14 @@ export default function ApplyPage() {
                       className="hidden"
                       onChange={(e) => {
                         const f = e.target.files?.[0];
-                        if (f) {
-                          setPhotoFile(f);
-                          setPhotoFileName(f.name);
+                        if (!f) return;
+                        if (f.size > MAX_UPLOAD_BYTES) {
+                          setError("Profile photo size cannot exceed 4MB.");
+                          return;
                         }
+                        setError(null);
+                        setPhotoFile(f);
+                        setPhotoFileName(f.name);
                       }}
                     />
                     <button
@@ -412,10 +454,12 @@ export default function ApplyPage() {
                       onClick={() => photoInputRef.current?.click()}
                       className="inline-flex items-center gap-2 rounded-lg border border-border bg-muted/60 px-3.5 py-2 text-xs font-medium text-foreground hover:bg-muted cursor-pointer"
                     >
-                      <Camera className="size-4 text-brand-strong" />
-                      {photoFileName
-                        ? `Selected Photo: ${photoFileName}`
-                        : "Upload Passport / Profile Photograph"}
+                      <Camera className="size-4 text-brand-strong shrink-0" />
+                      <span className="truncate max-w-[240px] sm:max-w-none">
+                        {photoFileName
+                          ? `Selected Photo: ${photoFileName}`
+                          : "Upload Passport / Profile Photograph"}
+                      </span>
                     </button>
                   </div>
                 </div>
@@ -501,6 +545,9 @@ export default function ApplyPage() {
                         onChange={(e) => setFieldId(e.target.value)}
                         className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground focus-visible:border-ring focus-visible:outline-none"
                       >
+                        {fields.length === 0 && (
+                          <option value="">Loading departments...</option>
+                        )}
                         {fields.map((f) => (
                           <option key={f.id} value={f.id}>
                             {f.name} ({f.totalSeats - f.filledSeats} seats open)
@@ -518,6 +565,9 @@ export default function ApplyPage() {
                         onChange={(e) => setBatchId(e.target.value)}
                         className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground focus-visible:border-ring focus-visible:outline-none"
                       >
+                        {batches.length === 0 && (
+                          <option value="">No active batches</option>
+                        )}
                         {batches.map((b) => (
                           <option key={b.id} value={b.id}>
                             {b.name} ({b.status})
@@ -531,7 +581,7 @@ export default function ApplyPage() {
                         Preferred Duration{" "}
                         <span className="text-brand-strong">*</span>
                       </label>
-                      <div className="grid grid-cols-4 gap-2">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                         {(durations.length > 0
                           ? durations.map((d) => d.months)
                           : [1, 2, 3, 6]
@@ -631,13 +681,13 @@ export default function ApplyPage() {
 
                     {/* CV Upload Zone */}
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold uppercase tracking-wider text-primary flex items-center justify-between">
+                      <label className="text-xs font-semibold uppercase tracking-wider text-primary flex items-center justify-between gap-2">
                         <span>
                           Upload CV / Resume{" "}
                           <span className="text-brand-strong">*</span>
                         </span>
                         <span className="text-[11px] font-normal normal-case text-muted-foreground">
-                          PDF, DOC, DOCX (Max 10MB)
+                          PDF, DOC, DOCX (Max 4MB)
                         </span>
                       </label>
                       <input
@@ -649,11 +699,11 @@ export default function ApplyPage() {
                       />
 
                       {cvFile ? (
-                        <div className="flex items-center justify-between rounded-xl border border-brand/40 bg-accent/40 p-3.5">
-                          <div className="flex items-center gap-3">
-                            <FileText className="size-5 text-brand-strong" />
-                            <div>
-                              <p className="text-sm font-semibold text-foreground">
+                        <div className="flex items-center justify-between gap-2 rounded-xl border border-brand/40 bg-accent/40 p-3.5">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <FileText className="size-5 text-brand-strong shrink-0" />
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-foreground truncate">
                                 {cvFile.name}
                               </p>
                               <p className="text-xs text-muted-foreground">
@@ -664,7 +714,7 @@ export default function ApplyPage() {
                           <button
                             type="button"
                             onClick={() => setCvFile(null)}
-                            className="text-xs text-destructive font-semibold hover:underline cursor-pointer"
+                            className="text-xs text-destructive font-semibold hover:underline cursor-pointer shrink-0"
                           >
                             Remove
                           </button>
@@ -679,7 +729,7 @@ export default function ApplyPage() {
                             Click to attach your CV / Resume
                           </p>
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            PDF or Word Document (Max 10MB)
+                            PDF or Word Document (Max 4MB)
                           </p>
                         </div>
                       )}

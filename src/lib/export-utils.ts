@@ -1,13 +1,11 @@
-import * as XLSX from "xlsx";
-import jsPDF from "jspdf";
-
 type Cell = string | number | undefined | null;
 
-export function exportToExcelCsv(
+export async function exportToExcelCsv(
   filename: string,
   headers: string[],
   rows: Cell[][],
-) {
+): Promise<void> {
+  const XLSX = await import("xlsx");
   const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Report");
@@ -19,8 +17,8 @@ export function exportToExcelCsv(
   );
 }
 
-export function downloadSampleImportCsv() {
-  exportToExcelCsv(
+export async function downloadSampleImportCsv(): Promise<void> {
+  await exportToExcelCsv(
     "logix_interns_bulk_import_template.xlsx",
     [
       "fullName",
@@ -84,22 +82,26 @@ export function parseCsvText(csvText: string): Array<Record<string, string>> {
   const headers = splitRow(lines[0].replace(/^\uFEFF/, ""));
   return lines.slice(1).map((line) => {
     const values = splitRow(line);
-    return Object.fromEntries(headers.map((header, index) => [header, values[index] || ""]));
+    return Object.fromEntries(
+      headers.map((header, index) => [header, values[index] || ""]),
+    );
   });
 }
 
-export function exportReportToPdf(params: {
+export async function exportReportToPdf(params: {
   title: string;
   subtitle: string;
   summaryMetrics?: Array<{ label: string; value: string | number }>;
   headers: string[];
   rows: Array<Array<string | number>>;
-}) {
+}): Promise<void> {
+  const { default: jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
   const margin = 32;
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
-  const columnWidth = (pageWidth - margin * 2) / params.headers.length;
+  const columnWidth =
+    (pageWidth - margin * 2) / Math.max(1, params.headers.length);
   let y = margin;
 
   pdf.setTextColor("#0b1f3a");
@@ -119,7 +121,8 @@ export function exportReportToPdf(params: {
     params.summaryMetrics.forEach((metric, index) => {
       pdf.text(
         `${metric.label}: ${metric.value}`,
-        margin + index * ((pageWidth - margin * 2) / params.summaryMetrics!.length),
+        margin +
+          index * ((pageWidth - margin * 2) / params.summaryMetrics!.length),
         y,
       );
     });
@@ -147,7 +150,11 @@ export function exportReportToPdf(params: {
     row.forEach((cell, index) => {
       pdf.setTextColor("#0b1f3a");
       pdf.setFontSize(7);
-      pdf.text(String(cell ?? "").slice(0, 34), margin + index * columnWidth + 4, y);
+      pdf.text(
+        String(cell ?? "").slice(0, 34),
+        margin + index * columnWidth + 4,
+        y,
+      );
     });
     y += 14;
   });

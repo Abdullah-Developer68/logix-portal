@@ -1,21 +1,15 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
+import dynamic from "next/dynamic";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar } from "@/components/ui/avatar";
-import {
-  CertificateModal,
-  type DocumentType,
-} from "@/components/portal/certificate-modal";
-import type {
-  PortalDatabase,
-  InternRecord,
-  TaskItem,
-} from "@/lib/types";
+import type { DocumentType } from "@/components/portal/certificate-modal";
+import type { PortalState, InternRecord, TaskItem } from "@/lib/types";
 import {
   Award,
   CheckCircle2,
@@ -31,12 +25,26 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
+const CertificateModal = dynamic(
+  () =>
+    import("@/components/portal/certificate-modal").then(
+      (mod) => mod.CertificateModal,
+    ),
+  { ssr: false },
+);
+
+const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
+
+function getTodayDate(): string {
+  return new Date().toISOString().split("T")[0];
+}
+
 export function InternDashboard({
   db,
   intern,
   onMutate,
 }: {
-  db: PortalDatabase;
+  db: PortalState;
   intern: InternRecord;
   onMutate: (payload: Record<string, unknown>) => Promise<boolean>;
 }) {
@@ -50,15 +58,18 @@ export function InternDashboard({
   const [submissionFileName, setSubmissionFileName] = useState("");
   const [submissionFile, setSubmissionFile] = useState<File | null>(null);
   const [submissionNotes, setSubmissionNotes] = useState("");
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [submittingTask, setSubmittingTask] = useState(false);
 
   // Leave request state
-  const [leaveStart, setLeaveStart] = useState("2026-10-22");
-  const [leaveEnd, setLeaveEnd] = useState("2026-10-23");
+  const [leaveStart, setLeaveStart] = useState(getTodayDate);
+  const [leaveEnd, setLeaveEnd] = useState(getTodayDate);
   const [leaveReason, setLeaveReason] = useState("");
 
   // Intern feedback state
-  const existingEval = db.evaluations.find(
-    (e) => e.internRecordId === intern.id || e.internId === intern.internId,
+  const existingEval = useMemo(
+    () => db.evaluations.find((e) => e.internRecordId === intern.id),
+    [db.evaluations, intern.id],
   );
   const [feedbackRating, setFeedbackRating] = useState(
     existingEval?.internFeedbackRating || 5,
@@ -71,59 +82,85 @@ export function InternDashboard({
   const [docModalOpen, setDocModalOpen] = useState(false);
   const [docModalType, setDocModalType] = useState<DocumentType>("certificate");
 
-  const myTasks = db.tasks.filter(
-    (t) => t.internRecordId === intern.id || t.internId === intern.internId,
+  const myTasks = useMemo(
+    () => db.tasks.filter((t) => t.internRecordId === intern.id),
+    [db.tasks, intern.id],
   );
-  const myAttendance = db.attendance.filter(
-    (a) => a.internRecordId === intern.id || a.internId === intern.internId,
+  const myAttendance = useMemo(
+    () => db.attendance.filter((a) => a.internRecordId === intern.id),
+    [db.attendance, intern.id],
   );
-  const myLeaves = db.leaves.filter(
-    (l) => l.internRecordId === intern.id || l.internId === intern.internId,
+  const myLeaves = useMemo(
+    () => db.leaves.filter((l) => l.internRecordId === intern.id),
+    [db.leaves, intern.id],
   );
-  const myCertificate = db.certificates.find(
-    (c) => c.internRecordId === intern.id || c.internId === intern.internId,
+  const myCertificate = useMemo(
+    () => db.certificates.find((c) => c.internRecordId === intern.id),
+    [db.certificates, intern.id],
   );
-  const relevantAnnouncements = db.announcements.filter(
-    (a) =>
-      a.targetAudience === "All Interns" ||
-      a.targetAudience === intern.fieldName ||
-      a.targetAudience === intern.batchName,
+  const relevantAnnouncements = useMemo(
+    () =>
+      db.announcements.filter(
+        (a) =>
+          a.targetAudience === "All Interns" ||
+          a.targetAudience === intern.fieldName ||
+          (intern.batchName && a.targetAudience === intern.batchName),
+      ),
+    [db.announcements, intern.fieldName, intern.batchName],
   );
 
   const handleTaskSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedTask) return;
-    if (!submissionLink.trim() && !submissionFile) return;
-    let submissionStorageKey = "";
-    if (submissionFile) {
-      const formData = new FormData();
-      formData.append("file", submissionFile);
-      formData.append("kind", "task_submission");
-      const uploadResponse = await fetch("/api/uploads", {
-        method: "POST",
-        body: formData,
-      });
-      const uploadData = await uploadResponse.json();
-      if (!uploadResponse.ok) return;
-      submissionStorageKey = uploadData.storageKey;
+    if (!submissionLink.trim() && !submissionFile) {
+      setSubmissionError("Provide a PR/deployment link or attach a file.");
+      return;
     }
-    const ok = await onMutate({
-      action: "submit_task",
-      taskId: selectedTask.id,
-      submissionLink,
-      submissionFileName: submissionFile?.name || submissionFileName,
-      submissionStorageKey,
-      submissionNotes,
-      actorName: intern.fullName,
-      actorEmail: intern.email,
-      actorRole: "intern",
-    });
-    if (ok) {
-      setSelectedTask(null);
-      setSubmissionLink("");
-      setSubmissionFileName("");
-      setSubmissionFile(null);
-      setSubmissionNotes("");
+    if (submissionFile && submissionFile.size > MAX_UPLOAD_BYTES) {
+      setSubmissionError("Attachment file size cannot exceed 4MB.");
+      return;
+    }
+
+    setSubmissionError(null);
+    setSubmittingTask(true);
+    try {
+      let submissionStorageKey = "";
+      if (submissionFile) {
+        const formData = new FormData();
+        formData.append("file", submissionFile);
+        formData.append("kind", "task_submission");
+        const uploadResponse = await fetch("/api/uploads", {
+          method: "POST",
+          body: formData,
+        });
+        const uploadData = await uploadResponse.json().catch(() => ({}));
+        if (!uploadResponse.ok) {
+          setSubmissionError(uploadData.error || "File upload failed.");
+          return;
+        }
+        submissionStorageKey = uploadData.storageKey;
+      }
+      const ok = await onMutate({
+        action: "submit_task",
+        taskId: selectedTask.id,
+        submissionLink,
+        submissionFileName: submissionFile?.name || submissionFileName,
+        submissionStorageKey,
+        submissionNotes,
+        actorName: intern.fullName,
+        actorEmail: intern.email,
+        actorRole: "intern",
+      });
+      if (ok) {
+        setSelectedTask(null);
+        setSubmissionLink("");
+        setSubmissionFileName("");
+        setSubmissionFile(null);
+        setSubmissionNotes("");
+        setSubmissionError(null);
+      }
+    } finally {
+      setSubmittingTask(false);
     }
   };
 
@@ -175,12 +212,14 @@ export function InternDashboard({
     setDocModalOpen(true);
   };
 
-  const initials = intern.fullName
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+  const initials =
+    intern.fullName
+      .split(" ")
+      .filter(Boolean)
+      .map((n) => n[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "IN";
 
   return (
     <div className="space-y-6">
@@ -207,9 +246,11 @@ export function InternDashboard({
               <h2 className="mt-2 text-2xl sm:text-3xl font-bold text-white">
                 {intern.fullName}
               </h2>
-              <p className="text-xs sm:text-sm text-white/75 mt-0.5">
-                {intern.fieldName} Intern · {intern.batchName} ({intern.durationMonths}{" "}
-                Months: {intern.startDate} → {intern.endDate})
+              <p className="text-xs sm:text-sm text-white/75 mt-0.5 break-words">
+                {intern.fieldName} Intern
+                {intern.batchName ? ` · ${intern.batchName}` : ""} (
+                {intern.durationMonths} Months: {intern.startDate} →{" "}
+                {intern.endDate})
               </p>
             </div>
           </div>
@@ -237,8 +278,8 @@ export function InternDashboard({
               <div className="text-xl font-bold text-white mt-0.5">
                 {intern.attendancePercentage}%
               </div>
-              <div className="text-[11px] text-white/60 mt-1">
-                Mentor: {intern.mentorName}
+              <div className="text-[11px] text-white/60 mt-1 truncate">
+                Mentor: {intern.mentorName || "Unassigned"}
               </div>
             </div>
 
@@ -313,38 +354,44 @@ export function InternDashboard({
                 <span className="text-[11px] uppercase text-muted-foreground font-semibold">
                   Full Name & Father&apos;s Name
                 </span>
-                <div className="font-semibold text-foreground mt-0.5">
-                  {intern.fullName} (S/D/O {intern.fatherName})
+                <div className="font-semibold text-foreground mt-0.5 break-words">
+                  {intern.fullName}
+                  {intern.fatherName ? ` (S/D/O ${intern.fatherName})` : ""}
                 </div>
               </div>
               <div className="rounded-xl border border-border bg-muted/40 p-3.5">
                 <span className="text-[11px] uppercase text-muted-foreground font-semibold">
                   CNIC / Student ID
                 </span>
-                <div className="font-mono font-semibold text-foreground mt-0.5">
-                  {intern.cnicOrStudentId}
+                <div className="font-mono font-semibold text-foreground mt-0.5 break-all">
+                  {intern.cnicOrStudentId || "Not provided"}
                 </div>
               </div>
               <div className="rounded-xl border border-border bg-muted/40 p-3.5">
                 <span className="text-[11px] uppercase text-muted-foreground font-semibold">
                   University & Degree
                 </span>
-                <div className="font-semibold text-foreground mt-0.5">
-                  {intern.university} — {intern.degree}
+                <div className="font-semibold text-foreground mt-0.5 break-words">
+                  {intern.university || "Not provided"}
+                  {intern.degree ? ` — ${intern.degree}` : ""}
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  {intern.semester} · CGPA: {intern.cgpa}
-                </div>
+                {(intern.semester || intern.cgpa) && (
+                  <div className="text-xs text-muted-foreground">
+                    {intern.semester || "—"}
+                    {intern.cgpa ? ` · CGPA: ${intern.cgpa}` : ""}
+                  </div>
+                )}
               </div>
               <div className="rounded-xl border border-border bg-muted/40 p-3.5">
                 <span className="text-[11px] uppercase text-muted-foreground font-semibold">
                   Contact & City
                 </span>
-                <div className="font-semibold text-foreground mt-0.5">
+                <div className="font-semibold text-foreground mt-0.5 break-all">
                   {intern.email}
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  {intern.phone} · {intern.city}
+                <div className="text-xs text-muted-foreground break-words">
+                  {intern.phone || "No phone"}
+                  {intern.city ? ` · ${intern.city}` : ""}
                 </div>
               </div>
               <div className="rounded-xl border border-border bg-muted/40 p-3.5">
@@ -352,8 +399,8 @@ export function InternDashboard({
                   Assigned Supervisor / Mentor
                 </span>
                 <div className="font-semibold text-brand-strong mt-0.5 flex items-center gap-1.5">
-                  <UserCheck className="size-4" />
-                  <span>{intern.mentorName}</span>
+                  <UserCheck className="size-4 shrink-0" />
+                  <span>{intern.mentorName || "Unassigned"}</span>
                 </div>
               </div>
               <div className="rounded-xl border border-border bg-muted/40 p-3.5">
@@ -372,11 +419,17 @@ export function InternDashboard({
                 Registered Skills & Links
               </span>
               <div className="mt-2 flex flex-wrap gap-1.5">
-                {intern.skills.map((s) => (
-                  <Badge key={s} variant="brand">
-                    {s}
-                  </Badge>
-                ))}
+                {intern.skills.length === 0 ? (
+                  <span className="text-xs text-muted-foreground">
+                    No skills listed yet.
+                  </span>
+                ) : (
+                  intern.skills.map((s) => (
+                    <Badge key={s} variant="brand">
+                      {s}
+                    </Badge>
+                  ))
+                )}
               </div>
               <div className="mt-3 flex flex-wrap gap-4 text-xs font-medium text-brand-strong">
                 {intern.githubUrl && (
@@ -396,7 +449,7 @@ export function InternDashboard({
                     rel="noreferrer"
                     className="inline-flex items-center gap-1 hover:underline"
                   >
-                LinkedIn <ExternalLink className="size-3" />
+                    LinkedIn <ExternalLink className="size-3" />
                   </a>
                 )}
                 {intern.portfolioUrl && (
@@ -420,20 +473,26 @@ export function InternDashboard({
                 <Megaphone className="size-4" />
                 <span>Cohort Announcements</span>
               </div>
-              {relevantAnnouncements.map((ann) => (
-                <div
-                  key={ann.id}
-                  className="rounded-xl border border-border bg-muted/50 p-3.5 text-xs space-y-1"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <strong className="text-foreground">{ann.title}</strong>
-                    <Badge variant="outline">{ann.targetAudience}</Badge>
+              {relevantAnnouncements.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  No announcements for your cohort yet.
+                </p>
+              ) : (
+                relevantAnnouncements.map((ann) => (
+                  <div
+                    key={ann.id}
+                    className="rounded-xl border border-border bg-muted/50 p-3.5 text-xs space-y-1"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <strong className="text-foreground">{ann.title}</strong>
+                      <Badge variant="outline">{ann.targetAudience}</Badge>
+                    </div>
+                    <p className="text-muted-foreground leading-relaxed">
+                      {ann.content}
+                    </p>
                   </div>
-                  <p className="text-muted-foreground leading-relaxed">
-                    {ann.content}
-                  </p>
-                </div>
-              ))}
+                ))
+              )}
             </Card>
 
             <Card className="p-5 space-y-3">
@@ -508,7 +567,7 @@ export function InternDashboard({
                   </p>
 
                   {task.submissionLink && (
-                    <div className="text-xs text-brand-strong font-medium">
+                    <div className="text-xs text-brand-strong font-medium break-all">
                       Submitted Link:{" "}
                       <a
                         href={task.submissionLink}
@@ -540,6 +599,9 @@ export function InternDashboard({
                       setSelectedTask(task);
                       setSubmissionLink(task.submissionLink || "");
                       setSubmissionNotes(task.submissionNotes || "");
+                      setSubmissionFile(null);
+                      setSubmissionFileName("");
+                      setSubmissionError(null);
                     }}
                     className="cursor-pointer font-semibold"
                   >
@@ -555,19 +617,30 @@ export function InternDashboard({
 
           {selectedTask && (
             <Card className="p-6 border-2 border-brand bg-card space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <h4 className="text-base font-bold text-primary">
                   Submit Work: {selectedTask.title}
                 </h4>
                 <button
                   type="button"
-                  onClick={() => setSelectedTask(null)}
+                  onClick={() => {
+                    setSelectedTask(null);
+                    setSubmissionError(null);
+                  }}
                   className="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
                 >
                   Cancel
                 </button>
               </div>
               <form onSubmit={handleTaskSubmit} className="space-y-4">
+                {submissionError && (
+                  <div
+                    role="alert"
+                    className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive"
+                  >
+                    {submissionError}
+                  </div>
+                )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-xs font-semibold uppercase text-primary">
@@ -581,13 +654,23 @@ export function InternDashboard({
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-semibold uppercase text-primary">
-                      Attachment (Optional)
+                      Attachment (Optional, Max 4MB)
                     </label>
                     <Input
                       type="file"
                       accept=".pdf,.zip,.txt,.png,.jpg,.jpeg"
                       onChange={(e) => {
                         const file = e.target.files?.[0] || null;
+                        if (file && file.size > MAX_UPLOAD_BYTES) {
+                          setSubmissionError(
+                            "Attachment file size cannot exceed 4MB.",
+                          );
+                          setSubmissionFile(null);
+                          setSubmissionFileName("");
+                          e.target.value = "";
+                          return;
+                        }
+                        setSubmissionError(null);
                         setSubmissionFile(file);
                         setSubmissionFileName(file?.name || "");
                       }}
@@ -608,9 +691,12 @@ export function InternDashboard({
                 <Button
                   type="submit"
                   variant="brand"
+                  disabled={submittingTask}
                   className="cursor-pointer font-semibold"
                 >
-                  Submit Deliverable for Mentor Review →
+                  {submittingTask
+                    ? "Uploading & Submitting..."
+                    : "Submit Deliverable for Mentor Review →"}
                 </Button>
               </form>
             </Card>
@@ -622,7 +708,7 @@ export function InternDashboard({
       {activeTab === "attendance" && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card className="p-6 space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="text-lg font-bold text-primary">
                   Attendance Log ({intern.attendancePercentage}%)
@@ -644,31 +730,39 @@ export function InternDashboard({
             </div>
 
             <div className="space-y-2">
-              {myAttendance.map((a) => (
-                <div
-                  key={a.id}
-                  className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3.5 py-2.5 text-xs"
-                >
-                  <div>
-                    <span className="font-mono font-bold text-foreground">
-                      {a.date}
-                    </span>
-                    {a.checkInTime && (
-                      <span className="ml-2 text-muted-foreground">
-                        ({a.checkInTime})
-                      </span>
-                    )}
-                    {a.notes && (
-                      <p className="text-muted-foreground mt-0.5">{a.notes}</p>
-                    )}
-                  </div>
-                  <Badge
-                    variant={a.status === "Present" ? "brand" : "secondary"}
+              {myAttendance.length === 0 ? (
+                <p className="text-xs text-muted-foreground rounded-lg border border-dashed border-border p-4 text-center">
+                  No attendance entries recorded yet.
+                </p>
+              ) : (
+                myAttendance.map((a) => (
+                  <div
+                    key={a.id}
+                    className="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/30 px-3.5 py-2.5 text-xs"
                   >
-                    {a.status}
-                  </Badge>
-                </div>
-              ))}
+                    <div>
+                      <span className="font-mono font-bold text-foreground">
+                        {a.date}
+                      </span>
+                      {a.checkInTime && (
+                        <span className="ml-2 text-muted-foreground">
+                          ({a.checkInTime})
+                        </span>
+                      )}
+                      {a.notes && (
+                        <p className="text-muted-foreground mt-0.5">
+                          {a.notes}
+                        </p>
+                      )}
+                    </div>
+                    <Badge
+                      variant={a.status === "Present" ? "brand" : "secondary"}
+                    >
+                      {a.status}
+                    </Badge>
+                  </div>
+                ))
+              )}
             </div>
           </Card>
 
@@ -677,7 +771,7 @@ export function InternDashboard({
               Request Leave (Requires Admin Approval)
             </h3>
             <form onSubmit={handleLeaveSubmit} className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-xs font-semibold uppercase text-primary">
                     Start Date
@@ -725,30 +819,36 @@ export function InternDashboard({
               <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 My Leave Requests
               </h4>
-              {myLeaves.map((lv) => (
-                <div
-                  key={lv.id}
-                  className="flex items-center justify-between rounded-lg border border-border p-3 text-xs"
-                >
-                  <div>
-                    <div className="font-semibold text-foreground">
-                      {lv.startDate} → {lv.endDate}
-                    </div>
-                    <div className="text-muted-foreground">{lv.reason}</div>
-                  </div>
-                  <Badge
-                    variant={
-                      lv.status === "Approved"
-                        ? "brand"
-                        : lv.status === "Rejected"
-                          ? "default"
-                          : "secondary"
-                    }
+              {myLeaves.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  No leave requests submitted yet.
+                </p>
+              ) : (
+                myLeaves.map((lv) => (
+                  <div
+                    key={lv.id}
+                    className="flex items-center justify-between gap-2 rounded-lg border border-border p-3 text-xs"
                   >
-                    {lv.status}
-                  </Badge>
-                </div>
-              ))}
+                    <div>
+                      <div className="font-semibold text-foreground">
+                        {lv.startDate} → {lv.endDate}
+                      </div>
+                      <div className="text-muted-foreground">{lv.reason}</div>
+                    </div>
+                    <Badge
+                      variant={
+                        lv.status === "Approved"
+                          ? "brand"
+                          : lv.status === "Rejected"
+                            ? "default"
+                            : "secondary"
+                      }
+                    >
+                      {lv.status}
+                    </Badge>
+                  </div>
+                ))
+              )}
             </div>
           </Card>
         </div>
@@ -758,7 +858,7 @@ export function InternDashboard({
       {activeTab === "evaluation" && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card className="p-6 space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-lg font-bold text-primary">
                 Mentor Performance Evaluation
               </h3>
@@ -811,8 +911,8 @@ export function InternDashboard({
             ) : (
               <div className="rounded-xl border border-border bg-muted/40 p-6 text-center text-xs sm:text-sm text-muted-foreground">
                 <Clock className="size-6 mx-auto text-brand-strong mb-2" />
-                Your mentor ({intern.mentorName}) will complete your final
-                performance evaluation at the end of your cohort so your
+                {intern.mentorName || "Your assigned mentor"} will complete your
+                final performance evaluation at the end of your cohort so your
                 Completion Certificate can be issued.
               </div>
             )}
@@ -831,7 +931,7 @@ export function InternDashboard({
                 <label className="text-xs font-semibold uppercase text-primary">
                   Overall Rating (1 to 5 Stars)
                 </label>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <button
                       key={star}
@@ -975,13 +1075,15 @@ export function InternDashboard({
         </div>
       )}
 
-      <CertificateModal
-        isOpen={docModalOpen}
-        onClose={() => setDocModalOpen(false)}
-        intern={intern}
-        certificate={myCertificate}
-        initialDocType={docModalType}
-      />
+      {docModalOpen && (
+        <CertificateModal
+          isOpen={docModalOpen}
+          onClose={() => setDocModalOpen(false)}
+          intern={intern}
+          certificate={myCertificate}
+          initialDocType={docModalType}
+        />
+      )}
     </div>
   );
 }

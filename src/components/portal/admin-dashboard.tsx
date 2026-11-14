@@ -1,16 +1,17 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useMemo, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  CertificateModal,
-  type DocumentType,
-} from "@/components/portal/certificate-modal";
+import type { DocumentType } from "@/components/portal/certificate-modal";
 import { MentorDashboard } from "@/components/portal/mentor-dashboard";
+import { WebsiteApplicationsTab } from "@/components/portal/website-applications";
+import { TeamAccountsTab } from "@/components/portal/team-accounts";
+import { CredentialNotice } from "@/components/portal/credential-notice";
 import {
   exportToExcelCsv,
   downloadSampleImportCsv,
@@ -18,11 +19,14 @@ import {
   exportReportToPdf,
 } from "@/lib/export-utils";
 import type {
-  PortalDatabase,
+  PortalState,
   InternRecord,
   InternshipStatus,
   ApplicationStatus,
   AttendanceStatus,
+  EvaluationRecord,
+  CertificateRecord,
+  PublicUser,
 } from "@/lib/types";
 import {
   Users,
@@ -46,28 +50,54 @@ import {
   ShieldCheck,
   Layers,
   Calendar,
+  KeyRound,
 } from "lucide-react";
+
+const CertificateModal = dynamic(
+  () =>
+    import("@/components/portal/certificate-modal").then(
+      (mod) => mod.CertificateModal,
+    ),
+  { ssr: false },
+);
+
+type AdminTab =
+  | "overview"
+  | "website_apps"
+  | "records"
+  | "team_accounts"
+  | "fields"
+  | "tasks_eval"
+  | "attendance"
+  | "certificates"
+  | "reports_system";
+
+function getTodayDate(): string {
+  return new Date().toISOString().split("T")[0];
+}
+
+function getDatePlusMonths(months: number): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() + months);
+  return d.toISOString().split("T")[0];
+}
 
 export function AdminDashboard({
   db,
   adminName,
   adminEmail,
   onMutate,
+  onMutateResult,
 }: {
-  db: PortalDatabase;
+  db: PortalState;
   adminName: string;
   adminEmail: string;
   onMutate: (payload: Record<string, unknown>) => Promise<boolean>;
+  onMutateResult: (
+    payload: Record<string, unknown>,
+  ) => Promise<{ ok: boolean; data: Record<string, unknown> | null }>;
 }) {
-  const [activeTab, setActiveTab] = useState<
-    | "overview"
-    | "records"
-    | "fields"
-    | "tasks_eval"
-    | "attendance"
-    | "certificates"
-    | "reports_system"
-  >("overview");
+  const [activeTab, setActiveTab] = useState<AdminTab>("overview");
 
   // Search & Filter states for Intern Records (Req 3.3)
   const [searchQuery, setSearchQuery] = useState("");
@@ -78,6 +108,19 @@ export function AdminDashboard({
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [showArchived, setShowArchived] = useState(false);
+  const [highlightedInternId, setHighlightedInternId] = useState<string | null>(
+    null,
+  );
+
+  // Create intern login states
+  const [creatingLoginForId, setCreatingLoginForId] = useState<string | null>(
+    null,
+  );
+  const [internLoginCred, setInternLoginCred] = useState<{
+    internName: string;
+    loginEmail: string;
+    temporaryPassword: string;
+  } | null>(null);
 
   // Add / Edit Intern Modal State
   const [recordModalOpen, setRecordModalOpen] = useState(false);
@@ -92,15 +135,15 @@ export function AdminDashboard({
   const [formDegree, setFormDegree] = useState("");
   const [formSemester, setFormSemester] = useState("");
   const [formCgpa, setFormCgpa] = useState("");
-  const [formFieldId, setFormFieldId] = useState("fld-web");
+  const [formFieldId, setFormFieldId] = useState("");
   const [formDuration, setFormDuration] = useState(3);
-  const [formStartDate, setFormStartDate] = useState("2026-09-01");
-  const [formBatchId, setFormBatchId] = useState("bat-autumn-26");
-  const [formMentorId, setFormMentorId] = useState("mnt-1");
+  const [formStartDate, setFormStartDate] = useState(getTodayDate);
+  const [formBatchId, setFormBatchId] = useState("");
+  const [formMentorId, setFormMentorId] = useState("");
   const [formStatus, setFormStatus] = useState<InternshipStatus>("Active");
   const [formAppStatus, setFormAppStatus] =
     useState<ApplicationStatus>("Approved");
-  const [formSkills, setFormSkills] = useState("Next.js, React, TypeScript");
+  const [formSkills, setFormSkills] = useState("");
 
   // Field / Duration / Batch creation states (Req 3.4)
   const [newFieldName, setNewFieldName] = useState("");
@@ -114,14 +157,12 @@ export function AdminDashboard({
   const [newDurLabel, setNewDurLabel] = useState("4 Months (Extended Track)");
 
   const [newBatchName, setNewBatchName] = useState("");
-  const [newBatchStart, setNewBatchStart] = useState("2027-02-01");
-  const [newBatchEnd, setNewBatchEnd] = useState("2027-05-01");
+  const [newBatchStart, setNewBatchStart] = useState(getTodayDate);
+  const [newBatchEnd, setNewBatchEnd] = useState(() => getDatePlusMonths(3));
 
   // Attendance quick mark state (Req 3.6)
   const [attInternId, setAttInternId] = useState(db.interns[0]?.id || "");
-  const [attDate, setAttDate] = useState(
-    new Date().toISOString().split("T")[0],
-  );
+  const [attDate, setAttDate] = useState(getTodayDate);
   const [attStatus, setAttStatus] = useState<AttendanceStatus>("Present");
   const [attNotes, setAttNotes] = useState("");
 
@@ -143,14 +184,61 @@ export function AdminDashboard({
 
   const csvInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    if (!recordModalOpen) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setRecordModalOpen(false);
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [recordModalOpen]);
+
   // Auto-calculated end date in the Add/Edit modal
-  const calculatedEndDate = (() => {
+  const calculatedEndDate = useMemo(() => {
     if (!formStartDate) return "";
     const d = new Date(formStartDate);
     if (Number.isNaN(d.getTime())) return "";
     d.setMonth(d.getMonth() + Number(formDuration || 3));
     return d.toISOString().split("T")[0];
-  })();
+  }, [formStartDate, formDuration]);
+
+  const websiteApplications = useMemo(
+    () => db.websiteApplications ?? [],
+    [db.websiteApplications],
+  );
+
+  const newWebsiteAppsCount = useMemo(
+    () => websiteApplications.filter((a) => a.status === "new").length,
+    [websiteApplications],
+  );
+
+  const userByInternRecordId = useMemo(() => {
+    const map = new Map<string, PublicUser>();
+    for (const u of db.users) {
+      if (u.internRecordId) {
+        map.set(u.internRecordId, u);
+      }
+    }
+    return map;
+  }, [db.users]);
+
+  const evalByInternRecordId = useMemo(() => {
+    const map = new Map<string, EvaluationRecord>();
+    for (const ev of db.evaluations) {
+      if (ev.completed) {
+        map.set(ev.internRecordId, ev);
+      }
+    }
+    return map;
+  }, [db.evaluations]);
+
+  const certByInternRecordId = useMemo(() => {
+    const map = new Map<string, CertificateRecord>();
+    for (const cert of db.certificates) {
+      map.set(cert.internRecordId, cert);
+    }
+    return map;
+  }, [db.certificates]);
 
   const openAddInternModal = () => {
     setEditingIntern(null);
@@ -159,19 +247,19 @@ export function AdminDashboard({
     setFormCnic("");
     setFormEmail("");
     setFormPhone("");
-    setFormCity("Lahore");
-    setFormUni("FAST-NUCES");
-    setFormDegree("BS Computer Science");
-    setFormSemester("7th Semester");
-    setFormCgpa("3.70");
-    setFormFieldId(db.fields[0]?.id || "fld-web");
-    setFormDuration(3);
-    setFormStartDate("2026-11-01");
-    setFormBatchId(db.batches[2]?.id || db.batches[0]?.id || "");
+    setFormCity("");
+    setFormUni("");
+    setFormDegree("");
+    setFormSemester("");
+    setFormCgpa("");
+    setFormFieldId(db.fields[0]?.id || "");
+    setFormDuration(db.durations[0]?.months || 3);
+    setFormStartDate(getTodayDate());
+    setFormBatchId(db.batches[0]?.id || "");
     setFormMentorId(db.mentors[0]?.id || "");
     setFormStatus("Active");
     setFormAppStatus("Approved");
-    setFormSkills("Next.js, React, TypeScript");
+    setFormSkills("");
     setRecordModalOpen(true);
   };
 
@@ -247,74 +335,144 @@ export function AdminDashboard({
     e.target.value = "";
   };
 
+  const handleCreateInternLogin = async (intern: InternRecord) => {
+    setCreatingLoginForId(intern.id);
+    try {
+      const result = await onMutateResult({
+        action: "create_intern_login",
+        internRecordId: intern.id,
+      });
+      if (result.ok && result.data) {
+        const tempPw =
+          typeof result.data.temporaryPassword === "string"
+            ? result.data.temporaryPassword
+            : "";
+        const loginEmail =
+          typeof result.data.loginEmail === "string"
+            ? result.data.loginEmail
+            : intern.email;
+        if (tempPw) {
+          setInternLoginCred({
+            internName: intern.fullName,
+            loginEmail,
+            temporaryPassword: tempPw,
+          });
+        }
+      }
+    } finally {
+      setCreatingLoginForId(null);
+    }
+  };
+
+  const handleViewInternFromWebsiteApp = (internId: string) => {
+    setShowArchived(false);
+    setSearchQuery("");
+    setFilterField("ALL");
+    setFilterDuration("ALL");
+    setFilterBatch("ALL");
+    setFilterStatus("ALL");
+    setDateFrom("");
+    setDateTo("");
+    setHighlightedInternId(internId);
+    setActiveTab("records");
+  };
+
   // Filtered Intern Records
-  const filteredInterns = db.interns.filter((i) => {
-    if (!showArchived && i.archived) return false;
-    if (showArchived && !i.archived) return false;
+  const filteredInterns = useMemo(() => {
+    return db.interns.filter((i) => {
+      if (!showArchived && i.archived) return false;
+      if (showArchived && !i.archived) return false;
 
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const match =
-        i.fullName.toLowerCase().includes(q) ||
-        i.internId.toLowerCase().includes(q) ||
-        i.email.toLowerCase().includes(q) ||
-        i.fieldName.toLowerCase().includes(q) ||
-        i.internshipStatus.toLowerCase().includes(q) ||
-        i.university.toLowerCase().includes(q);
-      if (!match) return false;
-    }
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const match =
+          i.fullName.toLowerCase().includes(q) ||
+          i.internId.toLowerCase().includes(q) ||
+          i.email.toLowerCase().includes(q) ||
+          i.fieldName.toLowerCase().includes(q) ||
+          i.internshipStatus.toLowerCase().includes(q) ||
+          i.university.toLowerCase().includes(q);
+        if (!match) return false;
+      }
 
-    if (
-      filterField !== "ALL" &&
-      i.fieldId !== filterField &&
-      i.fieldName !== filterField
-    ) {
-      return false;
-    }
-    if (
-      filterDuration !== "ALL" &&
-      String(i.durationMonths) !== filterDuration
-    ) {
-      return false;
-    }
-    if (
-      filterBatch !== "ALL" &&
-      i.batchId !== filterBatch &&
-      i.batchName !== filterBatch
-    ) {
-      return false;
-    }
-    if (filterStatus !== "ALL" && i.internshipStatus !== filterStatus) {
-      return false;
-    }
-    if (dateFrom && i.startDate < dateFrom) return false;
-    if (dateTo && i.startDate > dateTo) return false;
+      if (
+        filterField !== "ALL" &&
+        i.fieldId !== filterField &&
+        i.fieldName !== filterField
+      ) {
+        return false;
+      }
+      if (
+        filterDuration !== "ALL" &&
+        String(i.durationMonths) !== filterDuration
+      ) {
+        return false;
+      }
+      if (
+        filterBatch !== "ALL" &&
+        i.batchId !== filterBatch &&
+        i.batchName !== filterBatch
+      ) {
+        return false;
+      }
+      if (filterStatus !== "ALL" && i.internshipStatus !== filterStatus) {
+        return false;
+      }
+      if (dateFrom && i.startDate < dateFrom) return false;
+      if (dateTo && i.startDate > dateTo) return false;
 
-    return true;
-  });
+      return true;
+    });
+  }, [
+    db.interns,
+    showArchived,
+    searchQuery,
+    filterField,
+    filterDuration,
+    filterBatch,
+    filterStatus,
+    dateFrom,
+    dateTo,
+  ]);
 
   // KPI Metrics (Req 3.9)
-  const nonArchived = db.interns.filter((i) => !i.archived);
-  const totalInterns = nonArchived.length;
-  const activeCount = nonArchived.filter(
-    (i) => i.internshipStatus === "Active",
-  ).length;
-  const completedCount = nonArchived.filter(
-    (i) => i.internshipStatus === "Completed",
-  ).length;
-  const pendingApps = nonArchived.filter(
-    (i) => i.applicationStatus === "Pending",
+  const nonArchived = useMemo(
+    () => db.interns.filter((i) => !i.archived),
+    [db.interns],
   );
-  const droppedOrTerminated = nonArchived.filter(
-    (i) =>
-      i.internshipStatus === "Dropped" || i.internshipStatus === "Terminated",
-  ).length;
-  const issuedCertificatesCount = db.certificates.filter(
-    (c) => c.status !== "Revoked",
-  ).length;
+  const totalInterns = nonArchived.length;
+  const activeCount = useMemo(
+    () => nonArchived.filter((i) => i.internshipStatus === "Active").length,
+    [nonArchived],
+  );
+  const completedCount = useMemo(
+    () => nonArchived.filter((i) => i.internshipStatus === "Completed").length,
+    [nonArchived],
+  );
+  const pendingApps = useMemo(
+    () => nonArchived.filter((i) => i.applicationStatus === "Pending"),
+    [nonArchived],
+  );
+  const droppedOrTerminated = useMemo(
+    () =>
+      nonArchived.filter(
+        (i) =>
+          i.internshipStatus === "Dropped" ||
+          i.internshipStatus === "Terminated",
+      ).length,
+    [nonArchived],
+  );
+  const issuedCertificatesCount = useMemo(
+    () => db.certificates.filter((c) => c.status !== "Revoked").length,
+    [db.certificates],
+  );
 
-  const handleExportFilteredExcel = () => {
-    exportToExcelCsv(
+  const effectiveAttInternId = nonArchived.some((i) => i.id === attInternId)
+    ? attInternId
+    : nonArchived[0]?.id || "";
+
+  const handleExportFilteredExcel = async () => {
+    await exportToExcelCsv(
       `logix_intern_records_${new Date().toISOString().slice(0, 10)}.csv`,
       [
         "Intern ID",
@@ -359,8 +517,8 @@ export function AdminDashboard({
     );
   };
 
-  const handleExportFilteredPdf = () => {
-    exportReportToPdf({
+  const handleExportFilteredPdf = async () => {
+    await exportReportToPdf({
       title: "Logix Intern Roster & Lifecycle Report",
       subtitle: `Filtered Records (${filteredInterns.length} Interns) · Generated by ${adminName}`,
       summaryMetrics: [
@@ -406,47 +564,78 @@ export function AdminDashboard({
     URL.revokeObjectURL(url);
   };
 
+  const durationBreakdownMonths = useMemo(() => {
+    if (db.durations.length > 0) {
+      return Array.from(new Set(db.durations.map((d) => d.months))).sort(
+        (a, b) => a - b,
+      );
+    }
+    return [1, 2, 3, 6];
+  }, [db.durations]);
+
   return (
     <div className="space-y-6">
       {/* Admin Navigation Tabs */}
       <div className="flex flex-wrap gap-2 border-b border-border pb-3">
         {[
-          { id: "overview", label: "Admin Dashboard" },
+          { id: "overview" as const, label: "Admin Dashboard", badge: 0 },
           {
-            id: "records",
-            label: `Intern Records & Applications (${nonArchived.length})`,
+            id: "website_apps" as const,
+            label: "Website Applications",
+            badge: newWebsiteAppsCount,
           },
-          { id: "fields", label: "Fields, Durations & Batches" },
-          { id: "tasks_eval", label: "Tasks & Evaluations" },
-          { id: "attendance", label: "Attendance & Leaves" },
           {
-            id: "certificates",
+            id: "records" as const,
+            label: `Intern Records (${nonArchived.length})`,
+            badge: 0,
+          },
+          {
+            id: "team_accounts" as const,
+            label: `Team & Accounts (${db.users.length})`,
+            badge: 0,
+          },
+          {
+            id: "fields" as const,
+            label: "Fields, Durations & Batches",
+            badge: 0,
+          },
+          {
+            id: "tasks_eval" as const,
+            label: "Tasks & Evaluations",
+            badge: 0,
+          },
+          {
+            id: "attendance" as const,
+            label: "Attendance & Leaves",
+            badge: 0,
+          },
+          {
+            id: "certificates" as const,
             label: `Certificates (${db.certificates.length})`,
+            badge: 0,
           },
-          { id: "reports_system", label: "Reports, Announcements & Audit" },
+          {
+            id: "reports_system" as const,
+            label: "Reports, Announcements & Audit",
+            badge: 0,
+          },
         ].map((tab) => (
           <button
             key={tab.id}
             type="button"
-            onClick={() =>
-              setActiveTab(
-                tab.id as
-                  | "overview"
-                  | "records"
-                  | "fields"
-                  | "tasks_eval"
-                  | "attendance"
-                  | "certificates"
-                  | "reports_system",
-              )
-            }
-            className={`rounded-lg px-3.5 py-2 text-xs sm:text-sm font-semibold transition-colors cursor-pointer ${
+            onClick={() => setActiveTab(tab.id)}
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs sm:text-sm font-semibold transition-colors cursor-pointer ${
               activeTab === tab.id
                 ? "bg-primary text-primary-foreground shadow-xs"
                 : "bg-card border border-border text-muted-foreground hover:text-foreground"
             }`}
           >
-            {tab.label}
+            <span>{tab.label}</span>
+            {tab.badge > 0 && (
+              <span className="inline-flex min-w-5 h-5 items-center justify-center rounded-full bg-brand px-1.5 text-[10px] font-bold text-brand-foreground">
+                {tab.badge}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -527,44 +716,55 @@ export function AdminDashboard({
           {/* Analytics Breakdown: Interns by Field & Interns by Duration */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card className="p-6 space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <h3 className="text-base font-bold text-primary">
                   Interns by Field / Department
                 </h3>
                 <Badge variant="brand">{db.fields.length} Departments</Badge>
               </div>
               <div className="space-y-3">
-                {db.fields.map((field) => {
-                  const count = nonArchived.filter(
-                    (i) =>
-                      i.fieldId === field.id || i.fieldName === field.name,
-                  ).length;
-                  const pct = Math.min(
-                    100,
-                    Math.round((count / Math.max(1, field.totalSeats)) * 100),
-                  );
-                  return (
-                    <div key={field.id} className="space-y-1">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-semibold text-foreground">
-                          {field.name}{" "}
-                          <span className="text-muted-foreground font-normal">
-                            ({field.podName})
+                {db.fields.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    No internship tracks configured yet. Add tracks in Fields,
+                    Durations & Batches.
+                  </p>
+                ) : (
+                  db.fields.map((field) => {
+                    const count = nonArchived.filter(
+                      (i) =>
+                        i.fieldId === field.id || i.fieldName === field.name,
+                    ).length;
+                    const pct = Math.min(
+                      100,
+                      Math.round((count / Math.max(1, field.totalSeats)) * 100),
+                    );
+                    return (
+                      <div key={field.id} className="space-y-1">
+                        <div className="flex items-center justify-between gap-2 text-xs">
+                          <span className="font-semibold text-foreground">
+                            {field.name}{" "}
+                            {field.podName && (
+                              <span className="text-muted-foreground font-normal">
+                                ({field.podName})
+                              </span>
+                            )}
                           </span>
-                        </span>
-                        <span className="font-mono font-semibold text-brand-strong">
-                          {count} / {field.totalSeats} seats
-                        </span>
+                          <span className="font-mono font-semibold text-brand-strong shrink-0">
+                            {count} / {field.totalSeats} seats
+                          </span>
+                        </div>
+                        <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                          <div
+                            className="h-full bg-brand rounded-full"
+                            style={{
+                              width: count === 0 ? "0%" : `${Math.max(4, pct)}%`,
+                            }}
+                          />
+                        </div>
                       </div>
-                      <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
-                        <div
-                          className="h-full bg-brand rounded-full"
-                          style={{ width: `${Math.max(8, pct)}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
             </Card>
 
@@ -574,7 +774,7 @@ export function AdminDashboard({
                   Interns by Duration & Cohort Status
                 </h3>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {[1, 2, 3, 6].map((m) => {
+                  {durationBreakdownMonths.map((m) => {
                     const c = nonArchived.filter(
                       (i) => i.durationMonths === m,
                     ).length;
@@ -597,7 +797,7 @@ export function AdminDashboard({
 
               {/* Pending Applications Quick Approval Queue */}
               <Card className="p-6 space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <h3 className="text-base font-bold text-primary">
                     Pending Applications Queue
                   </h3>
@@ -605,7 +805,7 @@ export function AdminDashboard({
                 </div>
                 {pendingApps.length === 0 ? (
                   <p className="text-xs text-muted-foreground">
-                    All submitted applications have been reviewed!
+                    All submitted applications have been reviewed.
                   </p>
                 ) : (
                   <div className="space-y-2.5">
@@ -615,7 +815,7 @@ export function AdminDashboard({
                         className="rounded-xl border border-border bg-muted/40 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                       >
                         <div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <strong className="text-sm text-primary">
                               {app.fullName}
                             </strong>
@@ -624,8 +824,9 @@ export function AdminDashboard({
                             </span>
                           </div>
                           <p className="text-xs text-muted-foreground">
-                            {app.university} (CGPA {app.cgpa}) · {app.fieldName}{" "}
-                            ({app.durationMonths}M)
+                            {app.university || "University N/A"}
+                            {app.cgpa ? ` (CGPA ${app.cgpa})` : ""} ·{" "}
+                            {app.fieldName} ({app.durationMonths}M)
                           </p>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
@@ -677,10 +878,37 @@ export function AdminDashboard({
       )}
 
       {/* ============================================================
-          TAB 2: INTERN RECORD MANAGEMENT (Req 3.3)
+          TAB 2: WEBSITE APPLICATIONS
+         ============================================================ */}
+      {activeTab === "website_apps" && (
+        <WebsiteApplicationsTab
+          applications={websiteApplications}
+          fields={db.fields}
+          durations={db.durations}
+          batches={db.batches}
+          mentors={db.mentors}
+          interns={db.interns}
+          emailEnabled={db.emailEnabled}
+          onMutateResult={onMutateResult}
+          onViewInternRecord={handleViewInternFromWebsiteApp}
+        />
+      )}
+
+      {/* ============================================================
+          TAB 3: INTERN RECORD MANAGEMENT (Req 3.3)
          ============================================================ */}
       {activeTab === "records" && (
         <div className="space-y-5">
+          {internLoginCred && (
+            <CredentialNotice
+              title={`Portal Login Created for ${internLoginCred.internName}`}
+              loginEmail={internLoginCred.loginEmail}
+              temporaryPassword={internLoginCred.temporaryPassword}
+              emailEnabled={db.emailEnabled}
+              onDismiss={() => setInternLoginCred(null)}
+            />
+          )}
+
           {/* Toolbar: Search, Filters, Add, Bulk Import, Export Excel/PDF */}
           <Card className="p-5 space-y-4">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
@@ -727,7 +955,9 @@ export function AdminDashboard({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={downloadSampleImportCsv}
+                  onClick={() => {
+                    void downloadSampleImportCsv();
+                  }}
                   className="cursor-pointer text-xs"
                 >
                   CSV Template
@@ -736,7 +966,9 @@ export function AdminDashboard({
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={handleExportFilteredExcel}
+                  onClick={() => {
+                    void handleExportFilteredExcel();
+                  }}
                   className="cursor-pointer"
                 >
                   <FileSpreadsheet className="size-3.5 text-brand-strong" />
@@ -746,7 +978,9 @@ export function AdminDashboard({
                   type="button"
                   variant="default"
                   size="sm"
-                  onClick={handleExportFilteredPdf}
+                  onClick={() => {
+                    void handleExportFilteredPdf();
+                  }}
                   className="cursor-pointer"
                 >
                   <Download className="size-3.5" />
@@ -756,7 +990,7 @@ export function AdminDashboard({
             </div>
 
             {/* Multi-Filter Bar */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-2 border-t border-border">
+            <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-2 border-t border-border">
               <select
                 value={filterField}
                 onChange={(e) => setFilterField(e.target.value)}
@@ -776,10 +1010,11 @@ export function AdminDashboard({
                 className="h-9 rounded-lg border border-input bg-background px-2.5 text-xs"
               >
                 <option value="ALL">All Durations</option>
-                <option value="1">1 Month</option>
-                <option value="2">2 Months</option>
-                <option value="3">3 Months</option>
-                <option value="6">6 Months</option>
+                {durationBreakdownMonths.map((m) => (
+                  <option key={m} value={String(m)}>
+                    {m} {m === 1 ? "Month" : "Months"}
+                  </option>
+                ))}
               </select>
 
               <select
@@ -821,7 +1056,7 @@ export function AdminDashboard({
                   type="date"
                   value={dateTo}
                   onChange={(e) => setDateTo(e.target.value)}
-                  className="h-9 text-xs"
+                  className="h-9 text-xs min-w-0"
                   title="Start Date To"
                 />
                 <button
@@ -840,161 +1075,246 @@ export function AdminDashboard({
           </Card>
 
           {/* Responsive Intern Records Table */}
-          <Card className="p-0 overflow-hidden">
-            <div className="table-wrapper">
-              <table className="w-full text-left border-collapse text-xs sm:text-sm">
-                <thead>
-                  <tr className="bg-primary text-primary-foreground border-b border-border">
-                    <th className="py-3.5 px-4 font-semibold">Intern ID & Name</th>
-                    <th className="py-3.5 px-4 font-semibold">Education</th>
-                    <th className="py-3.5 px-4 font-semibold">
-                      Department & Batch
-                    </th>
-                    <th className="py-3.5 px-4 font-semibold">
-                      Duration & Dates
-                    </th>
-                    <th className="py-3.5 px-4 font-semibold">Mentor</th>
-                    <th className="py-3.5 px-4 font-semibold">Status</th>
-                    <th className="py-3.5 px-4 font-semibold text-right">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {filteredInterns.map((intern) => (
-                    <tr
-                      key={intern.id}
-                      className="hover:bg-muted/50 transition-colors"
-                    >
-                      <td className="py-3.5 px-4">
-                        <div className="font-mono text-xs font-bold text-brand-strong">
-                          {intern.internId}
-                        </div>
-                        <div className="font-bold text-primary">
-                          {intern.fullName}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {intern.email}
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <div className="font-semibold text-foreground">
-                          {intern.university}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {intern.degree} · CGPA {intern.cgpa}
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <Badge variant="brand">{intern.fieldName}</Badge>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {intern.batchName}
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <div className="font-semibold text-foreground">
-                          {intern.durationMonths} Months
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {intern.startDate} → {intern.endDate}
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <div className="font-medium text-foreground">
-                          {intern.mentorName}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          Progress: {intern.progressPercentage}%
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <Badge
-                          variant={
-                            intern.internshipStatus === "Completed" ||
-                            intern.internshipStatus === "Active"
-                              ? "brand"
-                              : intern.internshipStatus === "Applied"
-                                ? "secondary"
-                                : "default"
-                          }
-                          dot
-                        >
-                          {intern.internshipStatus}
-                        </Badge>
-                      </td>
-                      <td className="py-3.5 px-4 text-right">
-                        <div className="inline-flex flex-wrap justify-end gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => openEditInternModal(intern)}
-                            className="rounded-lg border border-border p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
-                            title="Edit Record"
-                          >
-                            <Edit3 className="size-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setCertModalIntern(intern);
-                              setCertModalType("offer_letter");
-                              setCertModalOpen(true);
-                            }}
-                            className="rounded-lg border border-border p-1.5 text-muted-foreground hover:text-brand-strong hover:bg-muted cursor-pointer"
-                            title="Letters & Certificate"
-                          >
-                            <FileText className="size-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              onMutate({
-                                action: "archive_intern_record",
-                                id: intern.id,
-                                actorName: adminName,
-                                actorEmail: adminEmail,
-                                actorRole: "admin",
-                              })
-                            }
-                            className="rounded-lg border border-border p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
-                            title={intern.archived ? "Restore" : "Archive"}
-                          >
-                            <Archive className="size-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              onMutate({
-                                action: "delete_intern_record",
-                                id: intern.id,
-                                actorName: adminName,
-                                actorEmail: adminEmail,
-                                actorRole: "admin",
-                              })
-                            }
-                            className="rounded-lg border border-border p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
-                            title="Delete Record"
-                          >
-                            <Trash2 className="size-3.5" />
-                          </button>
-                        </div>
-                      </td>
+          {filteredInterns.length === 0 ? (
+            <Card className="p-8 text-center space-y-3">
+              <p className="text-sm font-semibold text-primary">
+                {db.interns.length === 0
+                  ? "No intern records exist yet."
+                  : "No intern records match the current search or filters."}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {db.interns.length === 0
+                  ? "Add an intern manually, bulk import from CSV, or convert a candidate from Website Applications."
+                  : "Try clearing one or more filters or toggling between Active and Archived records."}
+              </p>
+              {(searchQuery ||
+                filterField !== "ALL" ||
+                filterDuration !== "ALL" ||
+                filterBatch !== "ALL" ||
+                filterStatus !== "ALL" ||
+                dateFrom ||
+                dateTo) && (
+                <div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setFilterField("ALL");
+                      setFilterDuration("ALL");
+                      setFilterBatch("ALL");
+                      setFilterStatus("ALL");
+                      setDateFrom("");
+                      setDateTo("");
+                    }}
+                    className="cursor-pointer"
+                  >
+                    Clear Filters
+                  </Button>
+                </div>
+              )}
+            </Card>
+          ) : (
+            <Card className="p-0 overflow-hidden">
+              <div className="table-wrapper">
+                <table className="w-full text-left border-collapse text-xs sm:text-sm">
+                  <thead>
+                    <tr className="bg-primary text-primary-foreground border-b border-border">
+                      <th className="py-3.5 px-4 font-semibold">
+                        Intern ID & Name
+                      </th>
+                      <th className="py-3.5 px-4 font-semibold">Education</th>
+                      <th className="py-3.5 px-4 font-semibold">
+                        Department & Batch
+                      </th>
+                      <th className="py-3.5 px-4 font-semibold">
+                        Duration & Dates
+                      </th>
+                      <th className="py-3.5 px-4 font-semibold">Mentor</th>
+                      <th className="py-3.5 px-4 font-semibold">Status</th>
+                      <th className="py-3.5 px-4 font-semibold text-right">
+                        Actions
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {filteredInterns.map((intern) => {
+                      const hasLinkedLogin =
+                        Boolean(intern.userId) ||
+                        userByInternRecordId.has(intern.id);
+                      const isHighlighted = highlightedInternId === intern.id;
+                      return (
+                        <tr
+                          key={intern.id}
+                          className={`transition-colors ${
+                            isHighlighted
+                              ? "bg-brand/10 hover:bg-brand/15"
+                              : "hover:bg-muted/50"
+                          }`}
+                        >
+                          <td className="py-3.5 px-4">
+                            <div className="font-mono text-xs font-bold text-brand-strong">
+                              {intern.internId}
+                            </div>
+                            <div className="font-bold text-primary">
+                              {intern.fullName}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {intern.email}
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <div className="font-semibold text-foreground">
+                              {intern.university || "—"}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {intern.degree || "—"}
+                              {intern.cgpa ? ` · CGPA ${intern.cgpa}` : ""}
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <Badge variant="brand">{intern.fieldName}</Badge>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {intern.batchName || "Unassigned Batch"}
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <div className="font-semibold text-foreground">
+                              {intern.durationMonths} Months
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {intern.startDate} → {intern.endDate}
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <div className="font-medium text-foreground">
+                              {intern.mentorName || "Unassigned"}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Progress: {intern.progressPercentage}%
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <Badge
+                              variant={
+                                intern.internshipStatus === "Completed" ||
+                                intern.internshipStatus === "Active"
+                                  ? "brand"
+                                  : intern.internshipStatus === "Applied"
+                                    ? "secondary"
+                                    : "default"
+                              }
+                              dot
+                            >
+                              {intern.internshipStatus}
+                            </Badge>
+                          </td>
+                          <td className="py-3.5 px-4 text-right">
+                            <div className="inline-flex flex-wrap items-center justify-end gap-1.5">
+                              {!hasLinkedLogin && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={creatingLoginForId === intern.id}
+                                  onClick={() =>
+                                    void handleCreateInternLogin(intern)
+                                  }
+                                  className="cursor-pointer text-[11px] h-7 px-2"
+                                  title="Create Portal Login"
+                                >
+                                  <KeyRound className="size-3" />
+                                  {creatingLoginForId === intern.id
+                                    ? "Creating..."
+                                    : "Create login"}
+                                </Button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => openEditInternModal(intern)}
+                                className="rounded-lg border border-border p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
+                                title="Edit Record"
+                              >
+                                <Edit3 className="size-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCertModalIntern(intern);
+                                  setCertModalType("offer_letter");
+                                  setCertModalOpen(true);
+                                }}
+                                className="rounded-lg border border-border p-1.5 text-muted-foreground hover:text-brand-strong hover:bg-muted cursor-pointer"
+                                title="Letters & Certificate"
+                              >
+                                <FileText className="size-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  onMutate({
+                                    action: "archive_intern_record",
+                                    id: intern.id,
+                                    actorName: adminName,
+                                    actorEmail: adminEmail,
+                                    actorRole: "admin",
+                                  })
+                                }
+                                className="rounded-lg border border-border p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
+                                title={intern.archived ? "Restore" : "Archive"}
+                              >
+                                <Archive className="size-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  onMutate({
+                                    action: "delete_intern_record",
+                                    id: intern.id,
+                                    actorName: adminName,
+                                    actorEmail: adminEmail,
+                                    actorRole: "admin",
+                                  })
+                                }
+                                className="rounded-lg border border-border p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+                                title="Delete Record"
+                              >
+                                <Trash2 className="size-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
         </div>
       )}
 
       {/* ============================================================
-          TAB 3: FIELDS, DURATIONS & BATCHES (Req 3.4)
+          TAB 4: TEAM & ACCOUNTS
+         ============================================================ */}
+      {activeTab === "team_accounts" && (
+        <TeamAccountsTab
+          users={db.users}
+          currentUser={db.currentUser}
+          emailEnabled={db.emailEnabled}
+          onMutateResult={onMutateResult}
+        />
+      )}
+
+      {/* ============================================================
+          TAB 5: FIELDS, DURATIONS & BATCHES (Req 3.4)
          ============================================================ */}
       {activeTab === "fields" && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Fields / Departments Column */}
           <Card className="lg:col-span-2 p-6 space-y-5">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Layers className="size-4 text-brand-strong" />
                 <h3 className="text-lg font-bold text-primary">
@@ -1004,52 +1324,59 @@ export function AdminDashboard({
               <Badge variant="brand">{db.fields.length} Tracks</Badge>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {db.fields.map((f) => (
-                <div
-                  key={f.id}
-                  className={`rounded-xl border p-4 flex flex-col justify-between gap-3 ${
-                    f.active
-                      ? "border-border bg-muted/30"
-                      : "border-dashed border-border bg-muted/10 opacity-60"
-                  }`}
-                >
-                  <div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-bold text-primary text-sm">
-                        {f.name}
-                      </span>
-                      <Badge variant={f.active ? "brand" : "secondary"}>
-                        {f.active ? "Active" : "Disabled"}
-                      </Badge>
+            {db.fields.length === 0 ? (
+              <p className="text-xs text-muted-foreground rounded-xl border border-dashed border-border p-4 text-center">
+                No department tracks created yet. Add your first track below.
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {db.fields.map((f) => (
+                  <div
+                    key={f.id}
+                    className={`rounded-xl border p-4 flex flex-col justify-between gap-3 ${
+                      f.active
+                        ? "border-border bg-muted/30"
+                        : "border-dashed border-border bg-muted/10 opacity-60"
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-bold text-primary text-sm">
+                          {f.name}
+                        </span>
+                        <Badge variant={f.active ? "brand" : "secondary"}>
+                          {f.active ? "Active" : "Disabled"}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {f.podName || "General Pod"} · Seats: {f.filledSeats}/
+                        {f.totalSeats}
+                      </p>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {f.podName} · Seats: {f.filledSeats}/{f.totalSeats}
-                    </p>
+                    <div className="flex items-center justify-between pt-2 border-t border-border">
+                      <span className="text-[11px] font-mono text-muted-foreground">
+                        Code: {f.code}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onMutate({
+                            action: "toggle_field",
+                            id: f.id,
+                            actorName: adminName,
+                            actorEmail: adminEmail,
+                            actorRole: "admin",
+                          })
+                        }
+                        className="text-xs font-semibold text-brand-strong hover:underline cursor-pointer"
+                      >
+                        {f.active ? "Disable Track" : "Enable Track"}
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between pt-2 border-t border-border">
-                    <span className="text-[11px] font-mono text-muted-foreground">
-                      Code: {f.code}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        onMutate({
-                          action: "toggle_field",
-                          id: f.id,
-                          actorName: adminName,
-                          actorEmail: adminEmail,
-                          actorRole: "admin",
-                        })
-                      }
-                      className="text-xs font-semibold text-brand-strong hover:underline cursor-pointer"
-                    >
-                      {f.active ? "Disable Track" : "Enable Track"}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
 
             <form
               onSubmit={async (e) => {
@@ -1124,32 +1451,40 @@ export function AdminDashboard({
               <h3 className="text-base font-bold text-primary">
                 Available Durations
               </h3>
-              <div className="space-y-2">
-                {db.durations.map((d) => (
-                  <div
-                    key={d.id}
-                    className="flex items-center justify-between rounded-lg border border-border p-3 text-xs"
-                  >
-                    <div>
-                      <strong className="text-foreground">{d.label}</strong>
-                      <div className="text-muted-foreground">{d.weeks} weeks</div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        onMutate({
-                          action: "toggle_duration",
-                          id: d.id,
-                          actorName: adminName,
-                        })
-                      }
-                      className="text-brand-strong font-semibold hover:underline cursor-pointer"
+              {db.durations.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  No duration options added yet.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {db.durations.map((d) => (
+                    <div
+                      key={d.id}
+                      className="flex items-center justify-between gap-2 rounded-lg border border-border p-3 text-xs"
                     >
-                      {d.active ? "Active" : "Disabled"}
-                    </button>
-                  </div>
-                ))}
-              </div>
+                      <div>
+                        <strong className="text-foreground">{d.label}</strong>
+                        <div className="text-muted-foreground">
+                          {d.weeks} weeks
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onMutate({
+                            action: "toggle_duration",
+                            id: d.id,
+                            actorName: adminName,
+                          })
+                        }
+                        className="text-brand-strong font-semibold hover:underline cursor-pointer shrink-0"
+                      >
+                        {d.active ? "Active" : "Disabled"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
               <form
                 onSubmit={async (e) => {
                   e.preventDefault();
@@ -1196,22 +1531,30 @@ export function AdminDashboard({
                   Cohort Batches
                 </h3>
               </div>
-              <div className="space-y-2">
-                {db.batches.map((b) => (
-                  <div
-                    key={b.id}
-                    className="rounded-lg border border-border p-3 text-xs flex items-center justify-between"
-                  >
-                    <div>
-                      <div className="font-bold text-foreground">{b.name}</div>
-                      <div className="text-muted-foreground">
-                        {b.startDate} → {b.endDate}
+              {db.batches.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  No cohort batches created yet.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {db.batches.map((b) => (
+                    <div
+                      key={b.id}
+                      className="rounded-lg border border-border p-3 text-xs flex items-center justify-between gap-2"
+                    >
+                      <div>
+                        <div className="font-bold text-foreground">
+                          {b.name}
+                        </div>
+                        <div className="text-muted-foreground">
+                          {b.startDate} → {b.endDate}
+                        </div>
                       </div>
+                      <Badge variant="brand">{b.status}</Badge>
                     </div>
-                    <Badge variant="brand">{b.status}</Badge>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
               <form
                 onSubmit={async (e) => {
                   e.preventDefault();
@@ -1263,7 +1606,7 @@ export function AdminDashboard({
       )}
 
       {/* ============================================================
-          TAB 4: TASKS & PERFORMANCE EVALUATIONS (Req 3.5 & 3.7)
+          TAB 6: TASKS & PERFORMANCE EVALUATIONS (Req 3.5 & 3.7)
          ============================================================ */}
       {activeTab === "tasks_eval" && (
         <MentorDashboard
@@ -1275,7 +1618,7 @@ export function AdminDashboard({
       )}
 
       {/* ============================================================
-          TAB 5: ATTENDANCE & LEAVE APPROVALS (Req 3.6)
+          TAB 7: ATTENDANCE & LEAVE APPROVALS (Req 3.6)
          ============================================================ */}
       {activeTab === "attendance" && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1286,9 +1629,10 @@ export function AdminDashboard({
             <form
               onSubmit={async (e) => {
                 e.preventDefault();
+                if (!effectiveAttInternId) return;
                 await onMutate({
                   action: "mark_attendance",
-                  internRecordId: attInternId,
+                  internRecordId: effectiveAttInternId,
                   date: attDate,
                   status: attStatus,
                   notes: attNotes,
@@ -1302,15 +1646,19 @@ export function AdminDashboard({
             >
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <select
-                  value={attInternId}
+                  value={effectiveAttInternId}
                   onChange={(e) => setAttInternId(e.target.value)}
                   className="h-10 rounded-lg border border-input bg-background px-3 text-sm"
                 >
-                  {nonArchived.map((i) => (
-                    <option key={i.id} value={i.id}>
-                      {i.fullName} ({i.attendancePercentage}%)
-                    </option>
-                  ))}
+                  {nonArchived.length === 0 ? (
+                    <option value="">No interns available</option>
+                  ) : (
+                    nonArchived.map((i) => (
+                      <option key={i.id} value={i.id}>
+                        {i.fullName} ({i.attendancePercentage}%)
+                      </option>
+                    ))
+                  )}
                 </select>
                 <Input
                   type="date"
@@ -1318,7 +1666,7 @@ export function AdminDashboard({
                   onChange={(e) => setAttDate(e.target.value)}
                 />
               </div>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {(["Present", "Late", "Absent", "Leave"] as const).map((st) => (
                   <button
                     key={st}
@@ -1342,6 +1690,7 @@ export function AdminDashboard({
               <Button
                 type="submit"
                 variant="brand"
+                disabled={!effectiveAttInternId}
                 className="w-full justify-center font-semibold cursor-pointer"
               >
                 Save Attendance Entry
@@ -1352,24 +1701,32 @@ export function AdminDashboard({
               <h4 className="text-xs font-semibold uppercase text-muted-foreground">
                 Recent Attendance Records
               </h4>
-              {db.attendance.slice(0, 8).map((a) => (
-                <div
-                  key={a.id}
-                  className="flex items-center justify-between rounded-lg border border-border p-2.5 text-xs"
-                >
-                  <div>
-                    <strong className="text-foreground">{a.internName}</strong>{" "}
-                    <span className="font-mono text-muted-foreground">
-                      ({a.date})
-                    </span>
-                  </div>
-                  <Badge
-                    variant={a.status === "Present" ? "brand" : "secondary"}
+              {db.attendance.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  No attendance entries recorded yet.
+                </p>
+              ) : (
+                db.attendance.slice(0, 8).map((a) => (
+                  <div
+                    key={a.id}
+                    className="flex items-center justify-between gap-2 rounded-lg border border-border p-2.5 text-xs"
                   >
-                    {a.status}
-                  </Badge>
-                </div>
-              ))}
+                    <div>
+                      <strong className="text-foreground">
+                        {a.internName}
+                      </strong>{" "}
+                      <span className="font-mono text-muted-foreground">
+                        ({a.date})
+                      </span>
+                    </div>
+                    <Badge
+                      variant={a.status === "Present" ? "brand" : "secondary"}
+                    >
+                      {a.status}
+                    </Badge>
+                  </div>
+                ))
+              )}
             </div>
           </Card>
 
@@ -1377,79 +1734,85 @@ export function AdminDashboard({
             <h3 className="text-lg font-bold text-primary">
               Student Leave Requests Approval
             </h3>
-            <div className="space-y-3">
-              {db.leaves.map((lv) => (
-                <div
-                  key={lv.id}
-                  className="rounded-xl border border-border bg-muted/30 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                >
-                  <div className="text-xs space-y-1">
-                    <div className="flex items-center gap-2">
-                      <strong className="text-sm text-primary">
-                        {lv.internName}
-                      </strong>
-                      <Badge
-                        variant={
-                          lv.status === "Approved"
-                            ? "brand"
-                            : lv.status === "Rejected"
-                              ? "default"
-                              : "secondary"
-                        }
-                      >
-                        {lv.status}
-                      </Badge>
+            {db.leaves.length === 0 ? (
+              <p className="text-xs text-muted-foreground rounded-xl border border-dashed border-border p-6 text-center">
+                No leave requests submitted yet.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {db.leaves.map((lv) => (
+                  <div
+                    key={lv.id}
+                    className="rounded-xl border border-border bg-muted/30 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                  >
+                    <div className="text-xs space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <strong className="text-sm text-primary">
+                          {lv.internName}
+                        </strong>
+                        <Badge
+                          variant={
+                            lv.status === "Approved"
+                              ? "brand"
+                              : lv.status === "Rejected"
+                                ? "default"
+                                : "secondary"
+                          }
+                        >
+                          {lv.status}
+                        </Badge>
+                      </div>
+                      <div className="font-mono text-foreground">
+                        {lv.startDate} → {lv.endDate}
+                      </div>
+                      <p className="text-muted-foreground">{lv.reason}</p>
                     </div>
-                    <div className="font-mono text-foreground">
-                      {lv.startDate} → {lv.endDate}
-                    </div>
-                    <p className="text-muted-foreground">{lv.reason}</p>
+                    {lv.status === "Pending" && (
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Button
+                          type="button"
+                          variant="brand"
+                          size="sm"
+                          onClick={() =>
+                            onMutate({
+                              action: "review_leave",
+                              leaveId: lv.id,
+                              status: "Approved",
+                              actorName: adminName,
+                            })
+                          }
+                          className="cursor-pointer"
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            onMutate({
+                              action: "review_leave",
+                              leaveId: lv.id,
+                              status: "Rejected",
+                              actorName: adminName,
+                            })
+                          }
+                          className="text-destructive cursor-pointer"
+                        >
+                          Reject
+                        </Button>
+                      </div>
+                    )}
                   </div>
-                  {lv.status === "Pending" && (
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Button
-                        type="button"
-                        variant="brand"
-                        size="sm"
-                        onClick={() =>
-                          onMutate({
-                            action: "review_leave",
-                            leaveId: lv.id,
-                            status: "Approved",
-                            actorName: adminName,
-                          })
-                        }
-                        className="cursor-pointer"
-                      >
-                        Approve
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          onMutate({
-                            action: "review_leave",
-                            leaveId: lv.id,
-                            status: "Rejected",
-                            actorName: adminName,
-                          })
-                        }
-                        className="text-destructive cursor-pointer"
-                      >
-                        Reject
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </Card>
         </div>
       )}
 
       {/* ============================================================
-          TAB 6: CERTIFICATE MANAGEMENT (Req 3.8)
+          TAB 8: CERTIFICATE MANAGEMENT (Req 3.8)
          ============================================================ */}
       {activeTab === "certificates" && (
         <div className="space-y-6">
@@ -1473,108 +1836,72 @@ export function AdminDashboard({
               </Badge>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {nonArchived.map((intern) => {
-                const evalRec = db.evaluations.find(
-                  (e) => e.internRecordId === intern.id && e.completed,
-                );
-                const certRec = db.certificates.find(
-                  (c) => c.internRecordId === intern.id,
-                );
-                const isEligible =
-                  intern.internshipStatus === "Completed" && Boolean(evalRec);
+            {nonArchived.length === 0 ? (
+              <p className="text-xs text-muted-foreground rounded-xl border border-dashed border-border p-6 text-center">
+                No intern records yet. Certificates become eligible once an
+                intern is marked Completed with a completed mentor evaluation.
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {nonArchived.map((intern) => {
+                  const evalRec = evalByInternRecordId.get(intern.id);
+                  const certRec = certByInternRecordId.get(intern.id);
+                  const isEligible =
+                    intern.internshipStatus === "Completed" && Boolean(evalRec);
 
-                return (
-                  <div
-                    key={intern.id}
-                    className="rounded-xl border border-border bg-muted/30 p-4 flex flex-col justify-between gap-4"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-mono text-xs font-bold text-brand-strong">
-                          {intern.internId}
-                        </span>
-                        <div className="flex items-center gap-1.5">
-                          <Badge
-                            variant={
-                              intern.internshipStatus === "Completed"
-                                ? "brand"
-                                : "secondary"
-                            }
-                          >
-                            {intern.internshipStatus}
-                          </Badge>
-                          <Badge
-                            variant={evalRec ? "brand" : "outline"}
-                          >
-                            {evalRec
-                              ? `Eval: ${evalRec.grade} (${evalRec.totalMarks}%)`
-                              : "Eval Pending"}
-                          </Badge>
+                  return (
+                    <div
+                      key={intern.id}
+                      className="rounded-xl border border-border bg-muted/30 p-4 flex flex-col justify-between gap-4"
+                    >
+                      <div>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="font-mono text-xs font-bold text-brand-strong">
+                            {intern.internId}
+                          </span>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <Badge
+                              variant={
+                                intern.internshipStatus === "Completed"
+                                  ? "brand"
+                                  : "secondary"
+                              }
+                            >
+                              {intern.internshipStatus}
+                            </Badge>
+                            <Badge variant={evalRec ? "brand" : "outline"}>
+                              {evalRec
+                                ? `Eval: ${evalRec.grade} (${evalRec.totalMarks}%)`
+                                : "Eval Pending"}
+                            </Badge>
+                          </div>
                         </div>
+                        <h4 className="text-base font-bold text-primary mt-1.5">
+                          {intern.fullName}
+                        </h4>
+                        <p className="text-xs text-muted-foreground">
+                          {intern.fieldName} · {intern.durationMonths} Months (
+                          {intern.startDate} → {intern.endDate})
+                        </p>
+                        {certRec && (
+                          <div className="mt-2 rounded-lg bg-accent/60 border border-brand/30 px-3 py-1.5 text-xs flex flex-wrap items-center justify-between gap-2">
+                            <span className="font-mono font-bold text-brand-strong">
+                              {certRec.certificateNumber}
+                            </span>
+                            <span className="font-semibold">
+                              Status: {certRec.status}
+                            </span>
+                          </div>
+                        )}
                       </div>
-                      <h4 className="text-base font-bold text-primary mt-1.5">
-                        {intern.fullName}
-                      </h4>
-                      <p className="text-xs text-muted-foreground">
-                        {intern.fieldName} · {intern.durationMonths} Months (
-                        {intern.startDate} → {intern.endDate})
-                      </p>
-                      {certRec && (
-                        <div className="mt-2 rounded-lg bg-accent/60 border border-brand/30 px-3 py-1.5 text-xs flex items-center justify-between">
-                          <span className="font-mono font-bold text-brand-strong">
-                            {certRec.certificateNumber}
-                          </span>
-                          <span className="font-semibold">
-                            Status: {certRec.status}
-                          </span>
-                        </div>
-                      )}
-                    </div>
 
-                    <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border">
-                      {!certRec ? (
-                        <Button
-                          type="button"
-                          variant={isEligible ? "brand" : "outline"}
-                          size="sm"
-                          disabled={!isEligible}
-                          onClick={() =>
-                            onMutate({
-                              action: "issue_certificate",
-                              internRecordId: intern.id,
-                              actorName: adminName,
-                              actorEmail: adminEmail,
-                              actorRole: "admin",
-                            })
-                          }
-                          className="cursor-pointer font-semibold"
-                        >
-                          <Award className="size-3.5" />
-                          {isEligible
-                            ? "Issue QR Certificate"
-                            : "Requires Completed + Evaluation"}
-                        </Button>
-                      ) : (
-                        <>
+                      <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border">
+                        {!certRec ? (
                           <Button
                             type="button"
-                            variant="brand"
+                            variant={isEligible ? "brand" : "outline"}
                             size="sm"
-                            onClick={() => {
-                              setCertModalIntern(intern);
-                              setCertModalType("certificate");
-                              setCertModalOpen(true);
-                            }}
-                            className="cursor-pointer font-semibold"
-                          >
-                            <Award className="size-3.5" />
-                            View / Print PDF
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
+                            disabled={!isEligible}
                             onClick={() =>
                               onMutate({
                                 action: "issue_certificate",
@@ -1584,60 +1911,97 @@ export function AdminDashboard({
                                 actorRole: "admin",
                               })
                             }
-                            className="cursor-pointer"
+                            className="cursor-pointer font-semibold"
                           >
-                            <RotateCcw className="size-3.5" />
-                            Re-Issue
+                            <Award className="size-3.5" />
+                            {isEligible
+                              ? "Issue QR Certificate"
+                              : "Requires Completed + Evaluation"}
                           </Button>
-                          {certRec.status !== "Revoked" && (
+                        ) : (
+                          <>
                             <Button
                               type="button"
-                              variant="ghost"
+                              variant="brand"
+                              size="sm"
+                              onClick={() => {
+                                setCertModalIntern(intern);
+                                setCertModalType("certificate");
+                                setCertModalOpen(true);
+                              }}
+                              className="cursor-pointer font-semibold"
+                            >
+                              <Award className="size-3.5" />
+                              View / Print PDF
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
                               size="sm"
                               onClick={() =>
                                 onMutate({
-                                  action: "revoke_certificate",
-                                  certificateId: certRec.id,
-                                  reason:
-                                    "Administrative compliance verification.",
+                                  action: "issue_certificate",
+                                  internRecordId: intern.id,
                                   actorName: adminName,
                                   actorEmail: adminEmail,
                                   actorRole: "admin",
                                 })
                               }
-                              className="text-destructive hover:bg-destructive/10 cursor-pointer"
+                              className="cursor-pointer"
                             >
-                              <XCircle className="size-3.5" />
-                              Revoke
+                              <RotateCcw className="size-3.5" />
+                              Re-Issue
                             </Button>
-                          )}
-                        </>
-                      )}
+                            {certRec.status !== "Revoked" && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  onMutate({
+                                    action: "revoke_certificate",
+                                    certificateId: certRec.id,
+                                    reason:
+                                      "Administrative compliance verification.",
+                                    actorName: adminName,
+                                    actorEmail: adminEmail,
+                                    actorRole: "admin",
+                                  })
+                                }
+                                className="text-destructive hover:bg-destructive/10 cursor-pointer"
+                              >
+                                <XCircle className="size-3.5" />
+                                Revoke
+                              </Button>
+                            )}
+                          </>
+                        )}
 
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setCertModalIntern(intern);
-                          setCertModalType("offer_letter");
-                          setCertModalOpen(true);
-                        }}
-                        className="cursor-pointer text-xs"
-                      >
-                        Letters
-                      </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setCertModalIntern(intern);
+                            setCertModalType("offer_letter");
+                            setCertModalOpen(true);
+                          }}
+                          className="cursor-pointer text-xs"
+                        >
+                          Letters
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </Card>
         </div>
       )}
 
       {/* ============================================================
-          TAB 7: REPORTS, ANNOUNCEMENTS, AUDIT LOG & BACKUPS
+          TAB 9: REPORTS, ANNOUNCEMENTS, AUDIT LOG & BACKUPS
          ============================================================ */}
       {activeTab === "reports_system" && (
         <div className="space-y-6">
@@ -1665,7 +2029,9 @@ export function AdminDashboard({
                     type="button"
                     variant="brand"
                     size="sm"
-                    onClick={handleExportFilteredPdf}
+                    onClick={() => {
+                      void handleExportFilteredPdf();
+                    }}
                     className="flex-1 justify-center cursor-pointer"
                   >
                     Export PDF
@@ -1674,7 +2040,9 @@ export function AdminDashboard({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={handleExportFilteredExcel}
+                    onClick={() => {
+                      void handleExportFilteredExcel();
+                    }}
                     className="flex-1 justify-center cursor-pointer"
                   >
                     Export Excel
@@ -1699,8 +2067,8 @@ export function AdminDashboard({
                     type="button"
                     variant="brand"
                     size="sm"
-                    onClick={() =>
-                      exportReportToPdf({
+                    onClick={() => {
+                      void exportReportToPdf({
                         title: "Completion & Dropout Retention Report",
                         subtitle:
                           "Cohort Completion vs. Attrition Analysis — Logix Portal",
@@ -1730,8 +2098,8 @@ export function AdminDashboard({
                           `${i.progressPercentage}%`,
                           `${i.attendancePercentage}%`,
                         ]),
-                      })
-                    }
+                      });
+                    }}
                     className="flex-1 justify-center cursor-pointer"
                   >
                     Export PDF
@@ -1740,8 +2108,8 @@ export function AdminDashboard({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() =>
-                      exportToExcelCsv(
+                    onClick={() => {
+                      void exportToExcelCsv(
                         "logix_completion_dropout_report.csv",
                         [
                           "Intern ID",
@@ -1761,8 +2129,8 @@ export function AdminDashboard({
                           i.progressPercentage,
                           i.attendancePercentage,
                         ]),
-                      )
-                    }
+                      );
+                    }}
                     className="flex-1 justify-center cursor-pointer"
                   >
                     Export Excel
@@ -1787,11 +2155,10 @@ export function AdminDashboard({
                     type="button"
                     variant="brand"
                     size="sm"
-                    onClick={() =>
-                      exportReportToPdf({
+                    onClick={() => {
+                      void exportReportToPdf({
                         title: "Certificate Issuance & Verification Registry",
-                        subtitle:
-                          "Official Logix Credential Audit Log",
+                        subtitle: "Official Logix Credential Audit Log",
                         headers: [
                           "Certificate No",
                           "Intern ID",
@@ -1812,8 +2179,8 @@ export function AdminDashboard({
                           c.issueDate,
                           c.status,
                         ]),
-                      })
-                    }
+                      });
+                    }}
                     className="flex-1 justify-center cursor-pointer"
                   >
                     Export PDF
@@ -1822,8 +2189,8 @@ export function AdminDashboard({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() =>
-                      exportToExcelCsv(
+                    onClick={() => {
+                      void exportToExcelCsv(
                         "logix_certificate_issuance_report.csv",
                         [
                           "Certificate No",
@@ -1847,8 +2214,8 @@ export function AdminDashboard({
                           c.issueDate,
                           c.status,
                         ]),
-                      )
-                    }
+                      );
+                    }}
                     className="flex-1 justify-center cursor-pointer"
                   >
                     Export Excel
@@ -1895,7 +2262,7 @@ export function AdminDashboard({
                   value={annTitle}
                   onChange={(e) => setAnnTitle(e.target.value)}
                 />
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <select
                     value={annAudience}
                     onChange={(e) => setAnnAudience(e.target.value)}
@@ -1946,14 +2313,14 @@ export function AdminDashboard({
 
             {/* Database Backups (Req 4) */}
             <Card className="p-6 space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <Database className="size-4 text-brand-strong" />
                   <h3 className="text-base font-bold text-primary">
                     Database Backup Snapshots
                   </h3>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button
                     type="button"
                     variant="brand"
@@ -1984,33 +2351,39 @@ export function AdminDashboard({
               </div>
 
               <div className="space-y-2">
-                {db.backups.map((bkp) => (
-                  <div
-                    key={bkp.id}
-                    className="rounded-lg border border-border bg-muted/30 p-3 text-xs flex items-center justify-between"
-                  >
-                    <div>
-                      <div className="font-bold text-foreground">
-                        {bkp.label}
+                {db.backups.length === 0 ? (
+                  <p className="text-xs text-muted-foreground rounded-lg border border-dashed border-border p-4 text-center">
+                    No backup snapshots created yet.
+                  </p>
+                ) : (
+                  db.backups.map((bkp) => (
+                    <div
+                      key={bkp.id}
+                      className="rounded-lg border border-border bg-muted/30 p-3 text-xs flex items-center justify-between gap-2"
+                    >
+                      <div>
+                        <div className="font-bold text-foreground">
+                          {bkp.label}
+                        </div>
+                        <div className="text-muted-foreground">
+                          {bkp.recordCount} records ·{" "}
+                          {(bkp.sizeBytes / 1024).toFixed(1)} KB · by{" "}
+                          {bkp.createdBy}
+                        </div>
                       </div>
-                      <div className="text-muted-foreground">
-                        {bkp.recordCount} records ·{" "}
-                        {(bkp.sizeBytes / 1024).toFixed(1)} KB · by{" "}
-                        {bkp.createdBy}
-                      </div>
+                      <span className="font-mono text-[11px] text-brand-strong shrink-0">
+                        {bkp.timestamp.slice(0, 10)}
+                      </span>
                     </div>
-                    <span className="font-mono text-[11px] text-brand-strong">
-                      {bkp.timestamp.slice(0, 10)}
-                    </span>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </Card>
           </div>
 
           {/* Immutable Security Audit Log (Req 4) */}
           <Card className="p-6 space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="size-4 text-brand-strong" />
                 <h3 className="text-base font-bold text-primary">
@@ -2019,27 +2392,35 @@ export function AdminDashboard({
               </div>
               <Badge variant="outline">{db.auditLogs.length} Events</Badge>
             </div>
-            <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-              {db.auditLogs.map((log) => (
-                <div
-                  key={log.id}
-                  className="rounded-lg border border-border bg-muted/20 px-3.5 py-2.5 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2"
-                >
-                  <div>
-                    <span className="font-mono font-bold text-brand-strong mr-2">
-                      [{log.action}]
-                    </span>
-                    <strong className="text-foreground">{log.actorName}</strong>{" "}
-                    <span className="text-muted-foreground">
-                      ({log.actorRole}) — {log.details}
+            {db.auditLogs.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                No audit events recorded yet.
+              </p>
+            ) : (
+              <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                {db.auditLogs.map((log) => (
+                  <div
+                    key={log.id}
+                    className="rounded-lg border border-border bg-muted/20 px-3.5 py-2.5 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                  >
+                    <div className="break-words">
+                      <span className="font-mono font-bold text-brand-strong mr-2">
+                        [{log.action}]
+                      </span>
+                      <strong className="text-foreground">
+                        {log.actorName}
+                      </strong>{" "}
+                      <span className="text-muted-foreground">
+                        ({log.actorRole}) — {log.details}
+                      </span>
+                    </div>
+                    <span className="font-mono text-[11px] text-muted-foreground shrink-0">
+                      {log.timestamp.slice(0, 19).replace("T", " ")}
                     </span>
                   </div>
-                  <span className="font-mono text-[11px] text-muted-foreground shrink-0">
-                    {log.timestamp.slice(0, 19).replace("T", " ")}
-                  </span>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </Card>
         </div>
       )}
@@ -2050,6 +2431,9 @@ export function AdminDashboard({
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto"
           role="dialog"
           aria-modal="true"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setRecordModalOpen(false);
+          }}
         >
           <div className="w-full max-w-2xl rounded-2xl border border-border bg-card p-6 sm:p-8 shadow-2xl my-auto max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 mb-4 border-b border-border">
@@ -2061,6 +2445,7 @@ export function AdminDashboard({
               <button
                 type="button"
                 onClick={() => setRecordModalOpen(false)}
+                aria-label="Close modal"
                 className="text-sm text-muted-foreground hover:text-foreground cursor-pointer"
               >
                 ✕
@@ -2162,11 +2547,15 @@ export function AdminDashboard({
                     onChange={(e) => setFormFieldId(e.target.value)}
                     className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
                   >
-                    {db.fields.map((f) => (
-                      <option key={f.id} value={f.id}>
-                        {f.name}
-                      </option>
-                    ))}
+                    {db.fields.length === 0 ? (
+                      <option value="">No fields available</option>
+                    ) : (
+                      db.fields.map((f) => (
+                        <option key={f.id} value={f.id}>
+                          {f.name}
+                        </option>
+                      ))
+                    )}
                   </select>
                 </div>
                 <div>
@@ -2178,11 +2567,17 @@ export function AdminDashboard({
                     onChange={(e) => setFormDuration(Number(e.target.value))}
                     className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
                   >
-                    {db.durations.map((d) => (
-                      <option key={d.id} value={d.months}>
-                        {d.months} Months
-                      </option>
-                    ))}
+                    {db.durations.length === 0
+                      ? [1, 2, 3, 6].map((m) => (
+                          <option key={m} value={m}>
+                            {m} {m === 1 ? "Month" : "Months"}
+                          </option>
+                        ))
+                      : db.durations.map((d) => (
+                          <option key={d.id} value={d.months}>
+                            {d.months} {d.months === 1 ? "Month" : "Months"}
+                          </option>
+                        ))}
                   </select>
                 </div>
                 <div>
@@ -2207,6 +2602,7 @@ export function AdminDashboard({
                     onChange={(e) => setFormMentorId(e.target.value)}
                     className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
                   >
+                    <option value="">Unassigned</option>
                     {db.mentors.map((m) => (
                       <option key={m.id} value={m.id}>
                         {m.name} ({m.department})
@@ -2223,6 +2619,7 @@ export function AdminDashboard({
                     onChange={(e) => setFormBatchId(e.target.value)}
                     className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
                   >
+                    <option value="">Unassigned</option>
                     {db.batches.map((b) => (
                       <option key={b.id} value={b.id}>
                         {b.name}
@@ -2281,15 +2678,19 @@ export function AdminDashboard({
         </div>
       )}
 
-      <CertificateModal
-        isOpen={certModalOpen}
-        onClose={() => setCertModalOpen(false)}
-        intern={certModalIntern}
-        certificate={db.certificates.find(
-          (c) => c.internRecordId === certModalIntern?.id,
-        )}
-        initialDocType={certModalType}
-      />
+      {certModalOpen && (
+        <CertificateModal
+          isOpen={certModalOpen}
+          onClose={() => setCertModalOpen(false)}
+          intern={certModalIntern}
+          certificate={
+            certModalIntern
+              ? certByInternRecordId.get(certModalIntern.id)
+              : undefined
+          }
+          initialDocType={certModalType}
+        />
+      )}
     </div>
   );
 }

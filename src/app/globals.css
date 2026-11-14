@@ -180,3 +180,35 @@ html.dark,
   }
 }
 
+/* Lightweight CSS reveal animations (replaces framer-motion) */
+.reveal-fade {
+  opacity: 0;
+  transform: translate3d(var(--reveal-x, 0px), var(--reveal-y, 16px), 0);
+  transition:
+    opacity var(--reveal-duration, 480ms) cubic-bezier(0.21, 0.47, 0.32, 0.98) var(--reveal-delay, 0ms),
+    transform var(--reveal-duration, 480ms) cubic-bezier(0.21, 0.47, 0.32, 0.98) var(--reveal-delay, 0ms);
+}
+
+.reveal-fade[data-visible="true"] {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+}
+
+.reveal-card {
+  transition: transform 200ms ease-out;
+}
+
+.reveal-card:hover {
+  transform: translateY(-4px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-fade {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+  .reveal-card:hover {
+    transform: none !important;
+  }
+}

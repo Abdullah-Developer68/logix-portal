@@ -1,49 +1,16 @@
-import { betterAuth } from "better-auth";
-import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { admin } from "better-auth/plugins";
-import { db } from "@/db";
-import * as schema from "../../drizzle/schema";
+import crypto from "node:crypto";
+import { type NextRequest, type NextResponse } from "next/server";
+import type {
+  PortalDatabase,
+  PublicUser,
+  UserAccount,
+  UserRole,
+} from "./types";
 
-export type UserRole = "admin" | "mentor" | "intern";
+export type { UserRole };
 
-export const auth = betterAuth({
-  baseURL:
-    process.env.BETTER_AUTH_URL ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    "http://localhost:3000",
-  secret:
-    process.env.BETTER_AUTH_SECRET ||
-    "logix-internship-portal-secret-super-secure-2026-auth-token-32char",
-  database: drizzleAdapter(db, {
-    provider: "pg",
-    schema: {
-      user: schema.user,
-      session: schema.session,
-      account: schema.account,
-      verification: schema.verification,
-    },
-  }),
-  emailAndPassword: {
-    enabled: true,
-    requireEmailVerification: false,
-  },
-  user: {
-    additionalFields: {
-      role: {
-        type: "string",
-        defaultValue: "intern",
-      },
-    },
-  },
-  plugins: [
-    admin({
-      defaultRole: "intern",
-      adminRoles: ["admin"],
-    }),
-  ],
-});
-
-export type Session = typeof auth.$Infer.Session;
+export const SESSION_COOKIE_NAME = "portal_session";
+export const SESSION_TTL_SECONDS = 12 * 3600;
 
 /**
  * Access Control Matrix for Role-Based Access Control (RBAC)
@@ -87,42 +54,63 @@ export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
   ],
 };
 
-export function hasPermission(role: UserRole | string | undefined, permission: string): boolean {
+export function hasPermission(
+  role: UserRole | string | undefined,
+  permission: string,
+): boolean {
   if (!role) return false;
   if (role === "admin") return true;
   const perms = ROLE_PERMISSIONS[role as UserRole] || [];
   return perms.includes(permission);
 }
 
-import crypto from "crypto";
-import { type NextRequest } from "next/server";
+const globalForAuth = globalThis as unknown as {
+  __portalDevSessionSecret?: string;
+};
 
-export interface SessionPayload {
-  id: string;
-  userId?: string;
-  email: string;
-  role: UserRole;
-  name: string;
-  internRecordId?: string;
-  mentorId?: string;
+function getSessionSecret(): string {
+  const configured = process.env.PORTAL_SESSION_SECRET?.trim();
+  if (process.env.NODE_ENV === "production") {
+    if (!configured || configured.length < 32) {
+      throw new Error(
+        "PORTAL_SESSION_SECRET must be set and at least 32 characters long in production.",
+      );
+    }
+    return configured;
+  }
+
+  if (configured && configured.length >= 32) {
+    return configured;
+  }
+
+  if (!globalForAuth.__portalDevSessionSecret) {
+    globalForAuth.__portalDevSessionSecret = crypto
+      .randomBytes(32)
+      .toString("hex");
+  }
+  return globalForAuth.__portalDevSessionSecret;
+}
+
+export interface SessionTokenPayload {
+  uid: string;
+  tv: number;
   exp: number;
 }
 
 export function createPortalToken(
-  payload: Omit<SessionPayload, "exp" | "id"> & { id?: string; userId?: string },
-  expiresInSeconds = 24 * 3600,
+  payload: { uid: string; tv?: number },
+  expiresInSeconds = SESSION_TTL_SECONDS,
 ): string {
-  const secret =
-    process.env.BETTER_AUTH_SECRET ||
-    "logix-internship-portal-secret-super-secure-2026-auth-token-32char";
+  const secret = getSessionSecret();
   const exp = Math.floor(Date.now() / 1000) + expiresInSeconds;
-  const fullPayload: SessionPayload = {
-    ...payload,
-    id: payload.id || payload.userId || "",
-    userId: payload.userId || payload.id || "",
+  const fullPayload: SessionTokenPayload = {
+    uid: payload.uid,
+    tv: payload.tv ?? 0,
     exp,
   };
-  const encodedPayload = Buffer.from(JSON.stringify(fullPayload)).toString("base64url");
+  const encodedPayload = Buffer.from(JSON.stringify(fullPayload)).toString(
+    "base64url",
+  );
   const signature = crypto
     .createHmac("sha256", secret)
     .update(encodedPayload)
@@ -130,94 +118,114 @@ export function createPortalToken(
   return `${encodedPayload}.${signature}`;
 }
 
-export function verifyPortalToken(token: string): SessionPayload | null {
+export function verifyPortalToken(token: string): SessionTokenPayload | null {
   if (!token || typeof token !== "string") return null;
   const parts = token.split(".");
   if (parts.length !== 2) return null;
   const [encodedPayload, signature] = parts;
-  const secret =
-    process.env.BETTER_AUTH_SECRET ||
-    "logix-internship-portal-secret-super-secure-2026-auth-token-32char";
+  if (!encodedPayload || !signature) return null;
+
+  let secret: string;
+  try {
+    secret = getSessionSecret();
+  } catch {
+    return null;
+  }
+
   const expectedSig = crypto
     .createHmac("sha256", secret)
     .update(encodedPayload)
     .digest("base64url");
+
   try {
     const sigBuf = Buffer.from(signature);
     const expBuf = Buffer.from(expectedSig);
-    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+    if (
+      sigBuf.length !== expBuf.length ||
+      !crypto.timingSafeEqual(sigBuf, expBuf)
+    ) {
       return null;
     }
-    const payload: SessionPayload = JSON.parse(
+
+    const parsed = JSON.parse(
       Buffer.from(encodedPayload, "base64url").toString("utf-8"),
-    );
-    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
+    ) as Partial<SessionTokenPayload>;
+
+    if (
+      typeof parsed.uid !== "string" ||
+      !parsed.uid ||
+      typeof parsed.tv !== "number" ||
+      !Number.isInteger(parsed.tv) ||
+      typeof parsed.exp !== "number"
+    ) {
       return null;
     }
-    return payload;
+
+    if (parsed.exp <= Math.floor(Date.now() / 1000)) {
+      return null;
+    }
+
+    return {
+      uid: parsed.uid,
+      tv: parsed.tv,
+      exp: parsed.exp,
+    };
   } catch {
     return null;
   }
 }
 
-export async function resolveAuthenticatedUser(request: NextRequest): Promise<{
-  id: string;
-  email: string;
-  role: UserRole;
-  name: string;
-  internRecordId?: string;
-  mentorId?: string;
-} | null> {
-  // 1. Better-Auth server session
-  try {
-    const session = await auth.api.getSession({ headers: request.headers });
-    if (session?.user) {
-      return {
-        id: session.user.id,
-        email: session.user.email,
-        role: (session.user.role as UserRole) || "intern",
-        name: session.user.name,
-      };
-    }
-  } catch {
-    // Better-auth graceful fallback
-  }
-
-  // 2. Cookie: portal_token
-  const cookieToken = request.cookies.get("portal_token")?.value;
-  if (cookieToken) {
-    const payload = verifyPortalToken(cookieToken);
-    if (payload) {
-      return {
-        id: payload.id || payload.userId || "",
-        email: payload.email,
-        role: payload.role,
-        name: payload.name,
-        internRecordId: payload.internRecordId,
-        mentorId: payload.mentorId,
-      };
-    }
-  }
-
-  // 3. Authorization or x-portal-token header
-  const authHeader = request.headers.get("authorization");
-  const token = authHeader?.startsWith("Bearer ")
-    ? authHeader.slice(7).trim()
-    : request.headers.get("x-portal-token");
-  if (token) {
-    const payload = verifyPortalToken(token);
-    if (payload) {
-      return {
-        id: payload.id || payload.userId || "",
-        email: payload.email,
-        role: payload.role,
-        name: payload.name,
-        internRecordId: payload.internRecordId,
-        mentorId: payload.mentorId,
-      };
-    }
-  }
-
-  return null;
+export function toPublicUser(user: UserAccount): PublicUser {
+  return {
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    name: user.name,
+    emailVerified: user.emailVerified,
+    disabled: user.disabled,
+    mustChangePassword: user.mustChangePassword,
+    internRecordId: user.internRecordId,
+    mentorId: user.mentorId,
+    createdAt: user.createdAt,
+    lastLoginAt: user.lastLoginAt,
+  };
 }
 
+export function resolveAuthenticatedUser(
+  request: NextRequest,
+  db: PortalDatabase,
+): PublicUser | null {
+  const cookieToken = request.cookies.get(SESSION_COOKIE_NAME)?.value;
+  if (!cookieToken) return null;
+
+  const payload = verifyPortalToken(cookieToken);
+  if (!payload) return null;
+
+  const user = db.users.find((u) => u.id === payload.uid);
+  if (!user) return null;
+  if (user.disabled) return null;
+  if ((user.tokenVersion ?? 0) !== payload.tv) return null;
+
+  return toPublicUser(user);
+}
+
+export function setSessionCookie(response: NextResponse, token: string): void {
+  response.cookies.set(SESSION_COOKIE_NAME, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: SESSION_TTL_SECONDS,
+  });
+}
+
+export function clearSessionCookie(response: NextResponse): void {
+  response.cookies.set(SESSION_COOKIE_NAME, "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+  });
+  response.cookies.delete("portal_token");
+}

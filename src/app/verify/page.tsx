@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, Suspense } from "react";
+import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { PortalHeader, PortalFooter } from "@/components/layout/portal-header";
 import { PageHero } from "@/components/ui/page-hero";
@@ -9,7 +10,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { QrCodeSvg } from "@/components/portal/qr-code-svg";
-import { CertificateModal } from "@/components/portal/certificate-modal";
 import type { CertificateRecord, InternRecord } from "@/lib/types";
 import {
   ShieldCheck,
@@ -21,20 +21,28 @@ import {
   Printer,
 } from "lucide-react";
 
+const CertificateModal = dynamic(
+  () =>
+    import("@/components/portal/certificate-modal").then(
+      (mod) => mod.CertificateModal,
+    ),
+  { ssr: false },
+);
+
 interface VerificationResult {
   verified: boolean;
   certificate: CertificateRecord;
   intern: {
     internId: string;
     fullName: string;
-    university: string;
-    degree: string;
+    university?: string;
+    degree?: string;
     fieldName: string;
     durationMonths: number;
     batchName: string;
     startDate: string;
     endDate: string;
-    skills: string[];
+    skills?: string[];
   } | null;
   evaluation: {
     totalMarks: number;
@@ -45,7 +53,7 @@ interface VerificationResult {
 
 function VerifyContent() {
   const searchParams = useSearchParams();
-  const initialQuery = searchParams.get("cert") || "LGX-CERT-2026-8401";
+  const initialQuery = searchParams.get("cert") || "";
 
   const [query, setQuery] = useState(initialQuery);
   const [loading, setLoading] = useState(false);
@@ -61,7 +69,18 @@ function VerifyContent() {
       const res = await fetch(
         `/api/portal?verify=${encodeURIComponent(code.trim())}`,
       );
-      const data = await res.json();
+      if (res.status === 429) {
+        const retryAfter = res.headers.get("Retry-After");
+        const sec = retryAfter ? Number(retryAfter) : NaN;
+        setResult(null);
+        setError(
+          Number.isFinite(sec) && sec > 0
+            ? `Too many requests, try again in ${Math.ceil(sec)} seconds.`
+            : "Too many requests, try again in a few moments.",
+        );
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setResult(null);
         setError(data.error || "Certificate not found.");
@@ -80,7 +99,19 @@ function VerifyContent() {
     let active = true;
     fetch(`/api/portal?verify=${encodeURIComponent(initialQuery.trim())}`)
       .then(async (res) => {
-        const data = await res.json();
+        if (!active) return;
+        if (res.status === 429) {
+          const retryAfter = res.headers.get("Retry-After");
+          const sec = retryAfter ? Number(retryAfter) : NaN;
+          setResult(null);
+          setError(
+            Number.isFinite(sec) && sec > 0
+              ? `Too many requests, try again in ${Math.ceil(sec)} seconds.`
+              : "Too many requests, try again in a few moments.",
+          );
+          return;
+        }
+        const data = await res.json().catch(() => ({}));
         if (!active) return;
         if (!res.ok) {
           setResult(null);
@@ -108,13 +139,13 @@ function VerifyContent() {
         id: result.certificate.internRecordId,
         internId: result.certificate.internId,
         fullName: result.certificate.internName,
-        fatherName: result.certificate.fatherName,
-        cnicOrStudentId: "Verified",
-        email: "verified@logix.dev",
+        fatherName: result.certificate.fatherName || "",
+        cnicOrStudentId: "",
+        email: "",
         phone: "",
-        city: "Remote",
-        university: result.intern?.university || "Partner University",
-        degree: result.intern?.degree || "BS Computer Science",
+        city: "",
+        university: result.intern?.university || "",
+        degree: result.intern?.degree || "",
         semester: "",
         cgpa: "",
         fieldId: "",
@@ -124,9 +155,9 @@ function VerifyContent() {
         startDate: result.certificate.startDate,
         endDate: result.certificate.endDate,
         batchId: "",
-        batchName: result.certificate.batchName,
+        batchName: result.certificate.batchName || "",
         mentorId: "",
-        mentorName: result.certificate.mentorName,
+        mentorName: result.certificate.mentorName || "",
         cvFileName: "",
         cvFileSize: 0,
         skills: result.intern?.skills || [result.certificate.fieldName],
@@ -134,11 +165,18 @@ function VerifyContent() {
         internshipStatus: "Completed",
         archived: false,
         progressPercentage: 100,
-        attendancePercentage: 96,
+        attendancePercentage: 100,
         appliedAt: result.certificate.issueDate,
         updatedAt: result.certificate.issueDate,
       }
     : null;
+
+  const verifyUrl =
+    result && typeof window !== "undefined"
+      ? `${window.location.origin}/verify?cert=${encodeURIComponent(result.certificate.certificateNumber)}`
+      : result
+        ? `https://portal.logix.dev/verify?cert=${encodeURIComponent(result.certificate.certificateNumber)}`
+        : "";
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -158,16 +196,17 @@ function VerifyContent() {
 
         <div className="container-x max-w-4xl mt-10 space-y-6">
           {/* Search Bar Card */}
-          <Card className="p-6 sm:p-7 bg-card border-border shadow-md">
+          <Card className="p-5 sm:p-7 bg-card border-border shadow-md">
             <form
               onSubmit={handleSearch}
               className="flex flex-col sm:flex-row gap-3"
             >
-              <div className="relative flex-1">
+              <div className="relative flex-1 min-w-0">
                 <Input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Enter Certificate Number (e.g. LGX-CERT-2026-8401) or Intern ID (LGX-INT-2026-001)"
+                  placeholder="Enter Certificate Number (e.g. LGX-CERT-2026-...) or Intern ID"
+                  aria-label="Certificate Number or Intern ID"
                   className="font-mono text-sm h-11"
                 />
               </div>
@@ -175,38 +214,17 @@ function VerifyContent() {
                 type="submit"
                 variant="brand"
                 size="lg"
-                disabled={loading}
+                disabled={loading || !query.trim()}
                 className="h-11 font-semibold cursor-pointer"
               >
                 <Search className="size-4" />
                 {loading ? "Verifying..." : "Verify Credential"}
               </Button>
             </form>
-
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <span>Quick test samples:</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setQuery("LGX-CERT-2026-8401");
-                  performLookup("LGX-CERT-2026-8401");
-                }}
-                className="font-mono text-brand-strong hover:underline cursor-pointer"
-              >
-                LGX-CERT-2026-8401 (Hamza Ahmed)
-              </button>
-              <span>•</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setQuery("LGX-INT-2026-001");
-                  performLookup("LGX-INT-2026-001");
-                }}
-                className="font-mono text-brand-strong hover:underline cursor-pointer"
-              >
-                LGX-INT-2026-001 (By Intern ID)
-              </button>
-            </div>
+            <p className="mt-3 text-xs text-muted-foreground">
+              Enter an official Logix Certificate Number or Intern ID to verify
+              issuance status, tenure, and evaluation grade.
+            </p>
           </Card>
 
           {error && (
@@ -222,7 +240,7 @@ function VerifyContent() {
           )}
 
           {result && (
-            <Card className="p-6 sm:p-8 bg-card border-border shadow-xl space-y-6">
+            <Card className="p-5 sm:p-8 bg-card border-border shadow-xl space-y-6">
               {/* Verification Banner */}
               <div
                 className={`rounded-xl p-4 sm:p-5 border flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
@@ -231,7 +249,7 @@ function VerifyContent() {
                     : "border-destructive/50 bg-destructive/10 text-destructive"
                 }`}
               >
-                <div className="flex items-start sm:items-center gap-3.5">
+                <div className="flex items-start sm:items-center gap-3.5 min-w-0">
                   {result.verified ? (
                     <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-brand text-brand-foreground shadow-sm">
                       <ShieldCheck className="size-6" />
@@ -241,7 +259,7 @@ function VerifyContent() {
                       <ShieldAlert className="size-6" />
                     </div>
                   )}
-                  <div>
+                  <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <h2 className="text-lg sm:text-xl font-bold text-primary">
                         {result.verified
@@ -255,7 +273,7 @@ function VerifyContent() {
                         {result.certificate.status}
                       </Badge>
                     </div>
-                    <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                    <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 break-words">
                       Certificate No:{" "}
                       <strong className="font-mono text-foreground">
                         {result.certificate.certificateNumber}
@@ -309,9 +327,11 @@ function VerifyContent() {
                     <div className="text-base font-bold text-brand-strong mt-1">
                       {result.certificate.fieldName}
                     </div>
-                    <div className="text-xs text-muted-foreground mt-0.5">
-                      Cohort: {result.certificate.batchName}
-                    </div>
+                    {result.certificate.batchName && (
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        Cohort: {result.certificate.batchName}
+                      </div>
+                    )}
                   </div>
 
                   <div className="rounded-xl border border-border bg-muted/40 p-4">
@@ -332,25 +352,24 @@ function VerifyContent() {
                       Final Evaluation & Mentor
                     </span>
                     <div className="text-base font-bold text-primary mt-1 flex items-center gap-2">
-                      <Award className="size-4 text-brand-strong" />
+                      <Award className="size-4 text-brand-strong shrink-0" />
                       <span>
                         Grade {result.certificate.grade} (
                         {result.certificate.totalMarks}/100)
                       </span>
                     </div>
-                    <div className="text-xs text-muted-foreground mt-0.5">
-                      Supervised by {result.certificate.mentorName}
-                    </div>
+                    {result.certificate.mentorName && (
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        Supervised by {result.certificate.mentorName}
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 {/* QR Code Verification Box */}
                 <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-white p-4 text-center">
-                  <QrCodeSvg
-                    value={`https://portal.logix.dev/verify?cert=${result.certificate.certificateNumber}`}
-                    size={136}
-                  />
-                  <span className="mt-2 font-mono text-[11px] font-bold text-[#0b1f3a]">
+                  <QrCodeSvg value={verifyUrl} size={136} />
+                  <span className="mt-2 font-mono text-[11px] font-bold text-[#0b1f3a] break-all">
                     {result.certificate.certificateNumber}
                   </span>
                   <span className="text-[10px] text-[#5b6b84]">
@@ -360,48 +379,55 @@ function VerifyContent() {
               </div>
 
               {/* Certificate History Log */}
-              <div className="pt-4 border-t border-border">
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary mb-3">
-                  <History className="size-4 text-brand-strong" />
-                  <span>Certificate Audit History Log</span>
-                </div>
-                <div className="space-y-2">
-                  {result.certificate.history.map((h, i) => (
-                    <div
-                      key={i}
-                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 rounded-lg border border-border bg-muted/30 px-3.5 py-2 text-xs"
-                    >
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 className="size-3.5 text-brand-strong shrink-0" />
-                        <strong className="text-foreground">{h.action}</strong>
-                        <span className="text-muted-foreground">
-                          by {h.actor}
-                        </span>
-                        {h.note && (
-                          <span className="text-muted-foreground">
-                            — {h.note}
-                          </span>
-                        )}
-                      </div>
-                      <span className="font-mono text-[11px] text-muted-foreground">
-                        {h.timestamp.slice(0, 19).replace("T", " ")}
-                      </span>
+              {Array.isArray(result.certificate.history) &&
+                result.certificate.history.length > 0 && (
+                  <div className="pt-4 border-t border-border">
+                    <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary mb-3">
+                      <History className="size-4 text-brand-strong" />
+                      <span>Certificate Audit History Log</span>
                     </div>
-                  ))}
-                </div>
-              </div>
+                    <div className="space-y-2">
+                      {result.certificate.history.map((h, i) => (
+                        <div
+                          key={i}
+                          className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 rounded-lg border border-border bg-muted/30 px-3.5 py-2 text-xs"
+                        >
+                          <div className="flex flex-wrap items-center gap-2">
+                            <CheckCircle2 className="size-3.5 text-brand-strong shrink-0" />
+                            <strong className="text-foreground">
+                              {h.action}
+                            </strong>
+                            <span className="text-muted-foreground">
+                              by {h.actor}
+                            </span>
+                            {h.note && (
+                              <span className="text-muted-foreground">
+                                — {h.note}
+                              </span>
+                            )}
+                          </div>
+                          <span className="font-mono text-[11px] text-muted-foreground">
+                            {h.timestamp.slice(0, 19).replace("T", " ")}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
             </Card>
           )}
         </div>
       </main>
       <PortalFooter />
 
-      <CertificateModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        intern={modalIntern}
-        certificate={result?.certificate}
-      />
+      {modalOpen && (
+        <CertificateModal
+          isOpen={modalOpen}
+          onClose={() => setModalOpen(false)}
+          intern={modalIntern}
+          certificate={result?.certificate}
+        />
+      )}
     </div>
   );
 }

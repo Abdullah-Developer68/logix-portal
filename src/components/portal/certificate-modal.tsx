@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { QrCodeSvg } from "./qr-code-svg";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,13 +35,31 @@ export function CertificateModal({
   certificate?: CertificateRecord | null;
   initialDocType?: DocumentType;
 }) {
-  const [docType, setDocType] = useState<DocumentType>(initialDocType);
+  const [userChoice, setUserChoice] = useState<{
+    forInitial: DocumentType;
+    value: DocumentType;
+  } | null>(null);
+  const docType =
+    userChoice && userChoice.forInitial === initialDocType
+      ? userChoice.value
+      : initialDocType;
+  const setDocType = (next: DocumentType) =>
+    setUserChoice({ forInitial: initialDocType, value: next });
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen || !intern) return null;
 
   const certNumber =
     certificate?.certificateNumber ||
-    `LGX-CERT-2026-${intern.internId.slice(-3)}`;
+    `LGX-CERT-2026-${(intern.internId || "000").slice(-3)}`;
   const verifyUrl =
     typeof window !== "undefined"
       ? `${window.location.origin}/verify?cert=${encodeURIComponent(certNumber)}`
@@ -57,6 +75,9 @@ export function CertificateModal({
       role="dialog"
       aria-modal="true"
       aria-label="Official Internship Documents & Certificate"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div className="relative w-full max-w-4xl rounded-2xl border border-border bg-card text-card-foreground shadow-2xl p-4 sm:p-7 my-auto max-h-[95vh] overflow-y-auto">
         {/* Top Toolbar (Hidden when printing) */}
@@ -202,12 +223,13 @@ export function CertificateModal({
                 <h2 className="mt-2 text-3xl sm:text-4xl font-bold tracking-tight text-[#0b1f3a]">
                   {intern.fullName}
                 </h2>
-                {intern.fatherName && intern.fatherName !== "Not Provided" && (
-                  <p className="mt-1 text-xs text-[#5b6b84]">
-                    S/D/O {intern.fatherName} · Intern ID:{" "}
-                    <strong className="text-[#0b1f3a]">{intern.internId}</strong>
-                  </p>
-                )}
+                <p className="mt-1 text-xs text-[#5b6b84]">
+                  {intern.fatherName && intern.fatherName !== "Not Provided"
+                    ? `S/D/O ${intern.fatherName} · `
+                    : ""}
+                  Intern ID:{" "}
+                  <strong className="text-[#0b1f3a]">{intern.internId}</strong>
+                </p>
 
                 <p className="mt-5 max-w-2xl mx-auto text-sm sm:text-base leading-relaxed text-[#334155]">
                   has successfully completed a{" "}
@@ -215,8 +237,8 @@ export function CertificateModal({
                     {intern.durationMonths}-Month Remote Internship
                   </strong>{" "}
                   in the department of{" "}
-                  <strong className="text-[#0e9983]">{intern.fieldName}</strong>{" "}
-                  ({intern.batchName}) from{" "}
+                  <strong className="text-[#0e9983]">{intern.fieldName}</strong>
+                  {intern.batchName ? ` (${intern.batchName})` : ""} from{" "}
                   <strong className="text-[#0b1f3a]">{intern.startDate}</strong>{" "}
                   to <strong className="text-[#0b1f3a]">{intern.endDate}</strong>{" "}
                   at <strong>Logix Technologies Inc.</strong>
@@ -227,7 +249,7 @@ export function CertificateModal({
                     Performance Grade:{" "}
                     <strong className="text-[#0e9983]">
                       {certificate?.grade || "A+"} (
-                      {certificate?.totalMarks || 95}/100)
+                      {certificate?.totalMarks ?? 95}/100)
                     </strong>
                   </span>
                   <span className="text-[#cbd5e1]">•</span>
@@ -252,11 +274,11 @@ export function CertificateModal({
               <div className="mt-4 pt-6 border-t border-[#e2e8f0] grid grid-cols-1 sm:grid-cols-3 items-end gap-6">
                 <div className="text-center sm:text-left">
                   <div className="font-serif italic text-lg text-[#0b1f3a] font-semibold">
-                    {intern.mentorName}
+                    {intern.mentorName || "Program Mentor"}
                   </div>
                   <div className="h-px w-40 bg-[#0b1f3a]/30 my-1.5 mx-auto sm:mx-0" />
                   <div className="text-xs font-bold text-[#0b1f3a]">
-                    {intern.mentorName}
+                    {intern.mentorName || "Program Mentor"}
                   </div>
                   <div className="text-[11px] text-[#5b6b84]">
                     Supervising Mentor · {intern.fieldName}
@@ -289,8 +311,8 @@ export function CertificateModal({
           </div>
         ) : (
           /* Offer Letter, Completion Letter, or Experience Letter */
-          <div className="rounded-xl border border-[#e2e8f0] bg-white p-8 sm:p-12 text-[#0b1f3a] shadow-inner">
-            <div className="flex items-start justify-between border-b-2 border-[#0b1f3a] pb-6">
+          <div className="rounded-xl border border-[#e2e8f0] bg-white p-6 sm:p-12 text-[#0b1f3a] shadow-inner">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 border-b-2 border-[#0b1f3a] pb-6">
               <div>
                 <div className="text-2xl font-bold tracking-tight text-[#0b1f3a]">
                   LOG<span className="text-[#1fc8aa]">IX</span> TECHNOLOGIES INC.
@@ -299,7 +321,7 @@ export function CertificateModal({
                   Engineering HQ · Remote-First Global Delivery · portal@logix.dev
                 </p>
               </div>
-              <div className="text-right text-xs text-[#5b6b84]">
+              <div className="sm:text-right text-xs text-[#5b6b84]">
                 <div>
                   <strong>Ref ID:</strong> {intern.internId}
                 </div>
@@ -310,14 +332,23 @@ export function CertificateModal({
             </div>
 
             <div className="py-8 space-y-5 text-sm leading-7 text-[#1e293b]">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <p className="font-bold text-[#0b1f3a]">
                     To: {intern.fullName}
                   </p>
-                  <p className="text-xs text-[#5b6b84]">
-                    {intern.university} ({intern.degree}) · {intern.email}
-                  </p>
+                  {(intern.university || intern.degree || intern.email) && (
+                    <p className="text-xs text-[#5b6b84]">
+                      {[
+                        [intern.university, intern.degree ? `(${intern.degree})` : ""]
+                          .filter(Boolean)
+                          .join(" "),
+                        intern.email,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                  )}
                 </div>
                 <Badge variant="brand" className="uppercase">
                   {docType.replace("_", " ")}
@@ -327,8 +358,8 @@ export function CertificateModal({
               {docType === "offer_letter" && (
                 <>
                   <h3 className="text-lg font-bold text-[#0b1f3a] pt-2">
-                    Subject: Official Offer of Internship — {intern.fieldName} (
-                    {intern.batchName})
+                    Subject: Official Offer of Internship — {intern.fieldName}
+                    {intern.batchName ? ` (${intern.batchName})` : ""}
                   </h3>
                   <p>
                     Dear <strong>{intern.fullName}</strong>,
@@ -350,9 +381,11 @@ export function CertificateModal({
                     <div>
                       <strong>Department / Pod:</strong> {intern.fieldName}
                     </div>
-                    <div>
-                      <strong>Assigned Mentor:</strong> {intern.mentorName}
-                    </div>
+                    {intern.mentorName && (
+                      <div>
+                        <strong>Assigned Mentor:</strong> {intern.mentorName}
+                      </div>
+                    )}
                     <div>
                       <strong>Duration:</strong> {intern.durationMonths} Months (
                       {intern.startDate} to {intern.endDate})
@@ -379,9 +412,21 @@ export function CertificateModal({
                   <p>To Whom It May Concern,</p>
                   <p>
                     This letter formally confirms that{" "}
-                    <strong>{intern.fullName}</strong> (Student/CNIC ID:{" "}
-                    <strong>{intern.cnicOrStudentId}</strong>) from{" "}
-                    <strong>{intern.university}</strong> has completed their{" "}
+                    <strong>{intern.fullName}</strong>
+                    {intern.cnicOrStudentId && intern.cnicOrStudentId !== "Verified" ? (
+                      <>
+                        {" "}
+                        (Student/CNIC ID:{" "}
+                        <strong>{intern.cnicOrStudentId}</strong>)
+                      </>
+                    ) : null}
+                    {intern.university ? (
+                      <>
+                        {" "}
+                        from <strong>{intern.university}</strong>
+                      </>
+                    ) : null}{" "}
+                    has completed their{" "}
                     <strong>{intern.durationMonths}-month internship</strong> at{" "}
                     <strong>Logix Technologies Inc.</strong> in the{" "}
                     <strong>{intern.fieldName}</strong> department from{" "}
@@ -389,9 +434,16 @@ export function CertificateModal({
                     <strong>{intern.endDate}</strong>.
                   </p>
                   <p>
-                    Throughout the <strong>{intern.batchName}</strong> cohort,{" "}
+                    Throughout the{" "}
+                    <strong>{intern.batchName || "Logix"}</strong> cohort,{" "}
                     {intern.fullName} fulfilled all assigned engineering milestones
-                    under the supervision of <strong>{intern.mentorName}</strong>{" "}
+                    {intern.mentorName ? (
+                      <>
+                        {" "}
+                        under the supervision of{" "}
+                        <strong>{intern.mentorName}</strong>
+                      </>
+                    ) : null}{" "}
                     with a task completion rate of{" "}
                     <strong>{intern.progressPercentage}%</strong> and an attendance
                     record of <strong>{intern.attendancePercentage}%</strong>.
@@ -418,9 +470,17 @@ export function CertificateModal({
                   <p>
                     During this tenure, {intern.fullName} demonstrated strong
                     proficiency in{" "}
-                    <strong>{intern.skills.join(", ") || intern.fieldName}</strong>.
-                    In their final mentor evaluation conducted by{" "}
-                    <strong>{intern.mentorName}</strong>, they earned a grade of{" "}
+                    <strong>
+                      {(intern.skills || []).join(", ") || intern.fieldName}
+                    </strong>
+                    . In their final mentor evaluation
+                    {intern.mentorName ? (
+                      <>
+                        {" "}
+                        conducted by <strong>{intern.mentorName}</strong>
+                      </>
+                    ) : null}
+                    , they earned a grade of{" "}
                     <strong>{certificate?.grade || "A+"}</strong>.
                   </p>
                   <p>

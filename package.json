@@ -7,27 +7,25 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
-    "db:push": "drizzle-kit push",
-    "db:seed": "tsx src/scripts/seed-supabase.ts",
-    "db:studio": "drizzle-kit studio",
+    "db:migrate": "drizzle-kit migrate",
+    "create-admin": "tsx src/scripts/create-admin.ts",
     "test:security": "tsx src/scripts/test-security.ts"
   },
   "dependencies": {
-    "better-auth": "^1.7.7",
     "drizzle-orm": "^0.45.4",
-    "framer-motion": "^14.0.0",
     "jspdf": "^4.2.1",
     "lucide-react": "^1.55.0",
-    "next": "16.4.0",
-    "nodemailer": "^10.1.0",
-    "postgres": "^3.4.9",
+    "next": "^16.4.6",
+    "nodemailer": "^10.5.0",
+    "postgres": "^4.1.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "xlsx": "^0.18.5"
+    "server-only": "^0.0.1",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
-    "@better-auth/cli": "^1.4.22",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
     "@types/nodemailer": "^8.0.2",
@@ -35,8 +33,17 @@
     "@types/react-dom": "^19",
     "drizzle-kit": "^0.31.11",
     "eslint": "^9",
-    "eslint-config-next": "16.4.0",
+    "eslint-config-next": "^16.4.6",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
+  },
+  "overrides": {
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "^11.0.1"
+    },
+    "@esbuild-kit/core-utils": {
+      "esbuild": "^0.25.0"
+    }
   }
 }

@@ -30,12 +30,73 @@ export interface UserAccount {
   role: UserRole;
   name: string;
   emailVerified: boolean;
-  verificationCode?: string;
-  resetCode?: string;
+  /** scrypt hash of the 6-digit email verification code (never the raw code). */
+  verificationCodeHash?: string;
+  verificationExpiresAt?: string;
+  /** scrypt hash of the 6-digit password reset code (never the raw code). */
+  resetCodeHash?: string;
+  resetExpiresAt?: string;
+  /** Failed code attempts since the code was issued; code is invalidated after 5. */
+  codeAttempts?: number;
+  /** Incremented on password change/reset/disable to revoke existing sessions. */
+  tokenVersion?: number;
+  disabled?: boolean;
+  /** Set when an admin issued a temporary password; UI prompts a change. */
+  mustChangePassword?: boolean;
   internRecordId?: string;
   mentorId?: string;
   createdAt: string;
   lastLoginAt?: string;
+}
+
+/** User shape returned to the browser (no hashes, codes or token versions). */
+export interface PublicUser {
+  id: string;
+  email: string;
+  role: UserRole;
+  name: string;
+  emailVerified: boolean;
+  disabled?: boolean;
+  mustChangePassword?: boolean;
+  internRecordId?: string;
+  mentorId?: string;
+  createdAt: string;
+  lastLoginAt?: string;
+}
+
+/**
+ * An application submitted on the public website (logixofficial.site) and
+ * stored in the shared Postgres table `internship_applications`.
+ * Only admins receive these.
+ */
+export type WebsiteApplicationStatus =
+  | "new"
+  | "contacted"
+  | "reviewing"
+  | "shortlisted"
+  | "rejected"
+  | "hired";
+
+export interface WebsiteApplication {
+  id: string; // uuid
+  createdAt: string;
+  updatedAt: string;
+  fullName: string;
+  email: string;
+  phone: string | null;
+  role: string; // the internship track picked on the website
+  note: string | null;
+  hasResume: boolean;
+  resumeFileName: string | null;
+  resumeMimeType: string | null;
+  resumeSizeBytes: number | null;
+  status: WebsiteApplicationStatus;
+  adminNotes: string | null;
+  contactedAt: string | null;
+  reviewedAt: string | null;
+  reviewedBy: string | null;
+  /** Portal InternRecord.id once the candidate has been converted to an intern. */
+  internRecordId: string | null;
 }
 
 export interface FieldDepartment {
@@ -120,6 +181,8 @@ export interface InternRecord {
   // Status & Lifecycle
   applicationStatus: ApplicationStatus;
   internshipStatus: InternshipStatus;
+  /** Set when this intern was created from a website application. */
+  websiteApplicationId?: string;
   archived: boolean;
   // Calculated Metrics
   progressPercentage: number;
@@ -313,4 +376,19 @@ export interface PortalDatabase {
   announcements: AnnouncementItem[];
   auditLogs: AuditLogEntry[];
   backups: BackupSnapshot[];
+}
+
+/**
+ * Shape of GET /api/portal for an authenticated user. Users are stripped to
+ * PublicUser. Admins additionally receive `websiteApplications`.
+ * `auditLogs` is capped to the most recent 300 and `notifications` to 200.
+ */
+export interface PortalState extends Omit<PortalDatabase, "users" | "backups"> {
+  authenticated: true;
+  currentUser: PublicUser;
+  users: PublicUser[];
+  backups: BackupSnapshot[];
+  websiteApplications?: WebsiteApplication[];
+  /** False when SMTP isn't configured: UI must show temporary passwords for manual sharing. */
+  emailEnabled: boolean;
 }
