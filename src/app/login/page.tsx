@@ -236,22 +236,35 @@ function LoginContent() {
   return (
     <div className="flex min-h-screen flex-col">
       <PortalHeader />
-      <main className="flex flex-1 items-center justify-center bg-muted px-4 py-8 sm:py-12">
+      <main className="flex flex-1 items-center justify-center bg-muted/40 dark:bg-background px-4 py-10 sm:py-16">
         <div className="w-full max-w-lg">
-          <Card className="p-5 sm:p-8 shadow-lg border-border bg-card">
-            {/* Separate Role Login Tabs */}
-            <div className="grid grid-cols-3 gap-1.5 sm:gap-2 p-1 rounded-xl bg-muted border border-border mb-6">
+          <Card className="p-6 sm:p-8 shadow-lg border-border bg-card">
+            <div className="mb-4 flex items-center justify-between gap-2">
+              <span className="eyebrow">Logix Internship Portal</span>
+              <span className="text-[11px] font-mono text-muted-foreground">
+                {authMode === "login" ? `${roleTab.toUpperCase()} ACCESS` : authMode.toUpperCase()}
+              </span>
+            </div>
+
+            {/* Segmented Role Switcher */}
+            <div
+              role="tablist"
+              aria-label="Select portal role"
+              className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-muted border border-border mb-6"
+            >
               <button
                 type="button"
+                role="tab"
+                aria-selected={roleTab === "intern"}
                 onClick={() => {
                   setRoleTab("intern");
                   setAuthMode("login");
                   setError(null);
                   setInfoMessage(null);
                 }}
-                className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 rounded-lg py-2 px-2 sm:px-3 text-[11px] sm:text-sm font-semibold transition-all cursor-pointer ${
+                className={`min-h-10 flex items-center justify-center gap-1.5 rounded-lg py-2 px-2 sm:px-3 text-xs sm:text-sm font-medium transition-all cursor-pointer ${
                   roleTab === "intern"
-                    ? "bg-primary text-primary-foreground shadow-xs"
+                    ? "bg-brand text-brand-foreground font-semibold shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -260,15 +273,17 @@ function LoginContent() {
               </button>
               <button
                 type="button"
+                role="tab"
+                aria-selected={roleTab === "mentor"}
                 onClick={() => {
                   setRoleTab("mentor");
                   setAuthMode("login");
                   setError(null);
                   setInfoMessage(null);
                 }}
-                className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 rounded-lg py-2 px-2 sm:px-3 text-[11px] sm:text-sm font-semibold transition-all cursor-pointer ${
+                className={`min-h-10 flex items-center justify-center gap-1.5 rounded-lg py-2 px-2 sm:px-3 text-xs sm:text-sm font-medium transition-all cursor-pointer ${
                   roleTab === "mentor"
-                    ? "bg-primary text-primary-foreground shadow-xs"
+                    ? "bg-brand text-brand-foreground font-semibold shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -277,15 +292,17 @@ function LoginContent() {
               </button>
               <button
                 type="button"
+                role="tab"
+                aria-selected={roleTab === "admin"}
                 onClick={() => {
                   setRoleTab("admin");
                   setAuthMode("login");
                   setError(null);
                   setInfoMessage(null);
                 }}
-                className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 rounded-lg py-2 px-2 sm:px-3 text-[11px] sm:text-sm font-semibold transition-all cursor-pointer ${
+                className={`min-h-10 flex items-center justify-center gap-1.5 rounded-lg py-2 px-2 sm:px-3 text-xs sm:text-sm font-medium transition-all cursor-pointer ${
                   roleTab === "admin"
-                    ? "bg-primary text-primary-foreground shadow-xs"
+                    ? "bg-brand text-brand-foreground font-semibold shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -294,31 +311,51 @@ function LoginContent() {
               </button>
             </div>
 
-            <h1 className="text-2xl sm:text-3xl font-bold text-primary tracking-tight">
-              {authMode === "register"
-                ? "Intern Account Registration"
-                : authMode === "verify"
-                  ? "Verify Your Email Address"
-                  : authMode === "reset"
-                    ? "Reset Portal Password"
-                    : roleTab === "admin"
-                      ? "Administrator Sign In"
-                      : roleTab === "mentor"
-                        ? "Supervisor / Mentor Sign In"
-                        : "Intern Student Sign In"}
+            <h1 className="text-2xl sm:text-3xl font-bold text-primary tracking-tight leading-tight">
+              {authMode === "register" ? (
+                <>
+                  Intern <span className="text-brand-strong">Registration</span>
+                </>
+              ) : authMode === "verify" ? (
+                <>
+                  Verify Your <span className="text-brand-strong">Email</span>
+                </>
+              ) : authMode === "reset" ? (
+                <>
+                  Reset Portal <span className="text-brand-strong">Password</span>
+                </>
+              ) : roleTab === "admin" ? (
+                <>
+                  Administrator <span className="text-brand-strong">Sign In</span>
+                </>
+              ) : roleTab === "mentor" ? (
+                <>
+                  Mentor <span className="text-brand-strong">Sign In</span>
+                </>
+              ) : (
+                <>
+                  Intern <span className="text-brand-strong">Sign In</span>
+                </>
+              )}
             </h1>
-            <p className="mt-1.5 text-xs sm:text-sm text-muted-foreground">
-              {roleTab === "admin"
-                ? "Dedicated administrative access for intern records, cohorts, evaluations, and certificate issuance."
-                : roleTab === "mentor"
-                  ? "Assign tasks, review intern submissions, and complete performance evaluations."
-                  : "Track your application status, submit mentorship tasks, mark attendance, and download verified certificates."}
+            <p className="mt-2 text-xs sm:text-sm leading-relaxed text-muted-foreground">
+              {authMode === "register"
+                ? "Create your intern account and verify your university or personal email to access the portal."
+                : authMode === "verify"
+                  ? "Enter the 6-digit verification code dispatched to your inbox."
+                  : authMode === "reset"
+                    ? "Request a one-time reset code to restore access to your portal account."
+                    : roleTab === "admin"
+                      ? "Manage applications, cohorts, evaluations, team accounts, and certificates."
+                      : roleTab === "mentor"
+                        ? "Assign mentorship tasks, review intern submissions, and submit evaluations."
+                        : "Track your application status, submit tasks, mark attendance, and view certificates."}
             </p>
 
             {error && (
               <div
                 role="alert"
-                className="mt-4 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs sm:text-sm text-destructive break-words"
+                className="mt-5 rounded-lg border border-destructive/30 bg-destructive/10 p-3.5 text-xs sm:text-sm text-destructive break-words"
               >
                 {error}
               </div>
@@ -327,7 +364,7 @@ function LoginContent() {
             {infoMessage && (
               <div
                 role="status"
-                className="mt-4 rounded-lg border border-brand/40 bg-accent/50 p-3 text-xs sm:text-sm text-brand-strong break-words"
+                className="mt-5 rounded-lg border border-brand/40 bg-accent/60 p-3.5 text-xs sm:text-sm text-brand-strong break-words"
               >
                 {infoMessage}
               </div>
@@ -338,7 +375,7 @@ function LoginContent() {
                 <div className="space-y-1.5">
                   <label
                     htmlFor="login-email"
-                    className="text-xs font-semibold uppercase tracking-wider text-primary"
+                    className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
                   >
                     {roleTab.toUpperCase()} USERNAME OR EMAIL
                   </label>
@@ -354,10 +391,10 @@ function LoginContent() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <label
                       htmlFor="login-password"
-                      className="text-xs font-semibold uppercase tracking-wider text-primary"
+                      className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
                     >
                       PASSWORD
                     </label>
@@ -369,7 +406,7 @@ function LoginContent() {
                         setError(null);
                         setInfoMessage(null);
                       }}
-                      className="text-xs font-medium text-brand-strong hover:underline cursor-pointer"
+                      className="min-h-8 inline-flex items-center text-xs font-medium text-brand-strong hover:underline cursor-pointer"
                     >
                       Forgot password?
                     </button>
@@ -387,7 +424,7 @@ function LoginContent() {
 
                 <Button
                   type="submit"
-                  variant="default"
+                  variant="brand"
                   size="lg"
                   disabled={loading}
                   className="w-full justify-center font-semibold cursor-pointer"
@@ -398,7 +435,7 @@ function LoginContent() {
                 </Button>
 
                 {roleTab === "intern" && (
-                  <div className="pt-3 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <div className="pt-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
                     <span>New intern applicant?</span>
                     <button
                       type="button"
@@ -407,7 +444,7 @@ function LoginContent() {
                         setError(null);
                         setInfoMessage(null);
                       }}
-                      className="font-semibold text-brand-strong hover:underline cursor-pointer"
+                      className="min-h-9 inline-flex items-center font-semibold text-brand-strong hover:underline cursor-pointer"
                     >
                       Create Account (with Email Verification)
                     </button>
@@ -421,7 +458,7 @@ function LoginContent() {
                 <div className="space-y-1.5">
                   <label
                     htmlFor="reg-name"
-                    className="text-xs font-semibold uppercase tracking-wider text-primary"
+                    className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
                   >
                     Full Name
                   </label>
@@ -436,7 +473,7 @@ function LoginContent() {
                 <div className="space-y-1.5">
                   <label
                     htmlFor="reg-email"
-                    className="text-xs font-semibold uppercase tracking-wider text-primary"
+                    className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
                   >
                     Student / University Email
                   </label>
@@ -452,7 +489,7 @@ function LoginContent() {
                 <div className="space-y-1.5">
                   <label
                     htmlFor="reg-pass"
-                    className="text-xs font-semibold uppercase tracking-wider text-primary"
+                    className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
                   >
                     Create Password (min 8 characters)
                   </label>
@@ -487,7 +524,7 @@ function LoginContent() {
                     setError(null);
                     setInfoMessage(null);
                   }}
-                  className="w-full text-center text-xs text-muted-foreground hover:text-foreground pt-2 cursor-pointer"
+                  className="min-h-10 w-full text-center text-xs font-medium text-muted-foreground hover:text-foreground cursor-pointer"
                 >
                   ← Back to Intern Sign In
                 </button>
@@ -499,7 +536,7 @@ function LoginContent() {
                 <div className="space-y-1.5">
                   <label
                     htmlFor="ver-code"
-                    className="text-xs font-semibold uppercase tracking-wider text-primary"
+                    className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
                   >
                     6-Digit Email Verification Code
                   </label>
@@ -529,7 +566,7 @@ function LoginContent() {
                     setError(null);
                     setInfoMessage(null);
                   }}
-                  className="w-full text-center text-xs text-muted-foreground hover:text-foreground pt-2 cursor-pointer"
+                  className="min-h-10 w-full text-center text-xs font-medium text-muted-foreground hover:text-foreground cursor-pointer"
                 >
                   ← Back to Sign In
                 </button>
@@ -541,7 +578,7 @@ function LoginContent() {
                 <div className="space-y-1.5">
                   <label
                     htmlFor="rst-email"
-                    className="text-xs font-semibold uppercase tracking-wider text-primary"
+                    className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
                   >
                     Registered Email Address
                   </label>
@@ -560,7 +597,7 @@ function LoginContent() {
                     <div className="space-y-1.5">
                       <label
                         htmlFor="rst-code"
-                        className="text-xs font-semibold uppercase tracking-wider text-primary"
+                        className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
                       >
                         6-Digit Reset Code
                       </label>
@@ -576,7 +613,7 @@ function LoginContent() {
                     <div className="space-y-1.5">
                       <label
                         htmlFor="rst-new-pass"
-                        className="text-xs font-semibold uppercase tracking-wider text-primary"
+                        className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
                       >
                         New Password (min 8 characters)
                       </label>
@@ -597,7 +634,7 @@ function LoginContent() {
 
                 <Button
                   type="submit"
-                  variant="default"
+                  variant="brand"
                   size="lg"
                   disabled={loading}
                   className="w-full justify-center font-semibold cursor-pointer"
@@ -616,7 +653,7 @@ function LoginContent() {
                     setError(null);
                     setInfoMessage(null);
                   }}
-                  className="w-full text-center text-xs text-muted-foreground hover:text-foreground pt-2 cursor-pointer"
+                  className="min-h-10 w-full text-center text-xs font-medium text-muted-foreground hover:text-foreground cursor-pointer"
                 >
                   ← Back to Sign In
                 </button>

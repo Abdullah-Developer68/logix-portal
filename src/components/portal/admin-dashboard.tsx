@@ -6,7 +6,9 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { StatusBadge } from "@/components/portal/status-badge";
 import type { DocumentType } from "@/components/portal/certificate-modal";
 import { MentorDashboard } from "@/components/portal/mentor-dashboard";
 import { WebsiteApplicationsTab } from "@/components/portal/website-applications";
@@ -51,6 +53,8 @@ import {
   Layers,
   Calendar,
   KeyRound,
+  Inbox,
+  X,
 } from "lucide-react";
 
 const CertificateModal = dynamic(
@@ -453,6 +457,14 @@ export function AdminDashboard({
     () => nonArchived.filter((i) => i.applicationStatus === "Pending"),
     [nonArchived],
   );
+  // Website applications still in the pipeline (not yet hired or rejected).
+  const openWebsiteApps = useMemo(
+    () =>
+      (db.websiteApplications ?? []).filter(
+        (a) => a.status !== "hired" && a.status !== "rejected",
+      ).length,
+    [db.websiteApplications],
+  );
   const droppedOrTerminated = useMemo(
     () =>
       nonArchived.filter(
@@ -575,8 +587,12 @@ export function AdminDashboard({
 
   return (
     <div className="space-y-6">
-      {/* Admin Navigation Tabs */}
-      <div className="flex flex-wrap gap-2 border-b border-border pb-3">
+      {/* Admin Navigation Tabs (Horizontally scrollable pill nav) */}
+      <div
+        className="flex items-center gap-2 overflow-x-auto border-b border-border pb-3 -mx-1 px-1"
+        role="tablist"
+        aria-label="Admin workspace sections"
+      >
         {[
           { id: "overview" as const, label: "Admin Dashboard", badge: 0 },
           {
@@ -586,13 +602,13 @@ export function AdminDashboard({
           },
           {
             id: "records" as const,
-            label: `Intern Records (${nonArchived.length})`,
-            badge: 0,
+            label: "Intern Records",
+            badge: nonArchived.length,
           },
           {
             id: "team_accounts" as const,
-            label: `Team & Accounts (${db.users.length})`,
-            badge: 0,
+            label: "Team & Accounts",
+            badge: db.users.length,
           },
           {
             id: "fields" as const,
@@ -611,33 +627,44 @@ export function AdminDashboard({
           },
           {
             id: "certificates" as const,
-            label: `Certificates (${db.certificates.length})`,
-            badge: 0,
+            label: "Certificates",
+            badge: db.certificates.length,
           },
           {
             id: "reports_system" as const,
             label: "Reports, Announcements & Audit",
             badge: 0,
           },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setActiveTab(tab.id)}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs sm:text-sm font-semibold transition-colors cursor-pointer ${
-              activeTab === tab.id
-                ? "bg-primary text-primary-foreground shadow-xs"
-                : "bg-card border border-border text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <span>{tab.label}</span>
-            {tab.badge > 0 && (
-              <span className="inline-flex min-w-5 h-5 items-center justify-center rounded-full bg-brand px-1.5 text-[10px] font-bold text-brand-foreground">
-                {tab.badge}
-              </span>
-            )}
-          </button>
-        ))}
+        ].map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => setActiveTab(tab.id)}
+              className={`shrink-0 whitespace-nowrap min-h-10 inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs sm:text-sm font-medium transition-colors cursor-pointer ${
+                isActive
+                  ? "bg-brand text-brand-foreground font-semibold shadow-xs"
+                  : "bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted/60"
+              }`}
+            >
+              <span>{tab.label}</span>
+              {tab.badge > 0 && (
+                <span
+                  className={`inline-flex min-w-5 h-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold ${
+                    isActive
+                      ? "bg-brand-foreground/15 text-brand-foreground"
+                      : "bg-secondary text-secondary-foreground"
+                  }`}
+                >
+                  {tab.badge}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* ============================================================
@@ -647,25 +674,29 @@ export function AdminDashboard({
         <div className="space-y-6">
           {/* KPI Grid */}
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-            <Card inverted className="p-5">
-              <div className="flex items-center justify-between text-xs uppercase tracking-wider text-white/70">
-                <span>Total Interns</span>
-                <Users className="size-4 text-brand" />
+            <Card className="p-5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="eyebrow">Total Interns</span>
+                <span className="flex size-8 items-center justify-center rounded-lg bg-accent text-brand-strong shrink-0">
+                  <Users className="size-4" />
+                </span>
               </div>
-              <div className="text-3xl font-bold text-white mt-2">
+              <div className="text-3xl font-bold tracking-tight text-foreground mt-2">
                 {totalInterns}
               </div>
-              <p className="text-xs text-white/60 mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 Across {db.batches.length} cohort batches
               </p>
             </Card>
 
             <Card className="p-5">
-              <div className="flex items-center justify-between text-xs uppercase tracking-wider text-muted-foreground font-semibold">
-                <span>Active Interns</span>
-                <UserCheck className="size-4 text-brand-strong" />
+              <div className="flex items-center justify-between gap-2">
+                <span className="eyebrow">Active Interns</span>
+                <span className="flex size-8 items-center justify-center rounded-lg bg-accent text-brand-strong shrink-0">
+                  <UserCheck className="size-4" />
+                </span>
               </div>
-              <div className="text-3xl font-bold text-primary mt-2">
+              <div className="text-3xl font-bold tracking-tight text-foreground mt-2">
                 {activeCount}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
@@ -674,11 +705,13 @@ export function AdminDashboard({
             </Card>
 
             <Card className="p-5">
-              <div className="flex items-center justify-between text-xs uppercase tracking-wider text-muted-foreground font-semibold">
-                <span>Completed</span>
-                <CheckCircle2 className="size-4 text-brand-strong" />
+              <div className="flex items-center justify-between gap-2">
+                <span className="eyebrow">Completed</span>
+                <span className="flex size-8 items-center justify-center rounded-lg bg-accent text-brand-strong shrink-0">
+                  <CheckCircle2 className="size-4" />
+                </span>
               </div>
-              <div className="text-3xl font-bold text-primary mt-2">
+              <div className="text-3xl font-bold tracking-tight text-foreground mt-2">
                 {completedCount}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
@@ -687,24 +720,29 @@ export function AdminDashboard({
             </Card>
 
             <Card className="p-5">
-              <div className="flex items-center justify-between text-xs uppercase tracking-wider text-muted-foreground font-semibold">
-                <span>Pending Applications</span>
-                <Clock className="size-4 text-brand-strong" />
+              <div className="flex items-center justify-between gap-2">
+                <span className="eyebrow">Pending Apps</span>
+                <span className="flex size-8 items-center justify-center rounded-lg bg-accent text-brand-strong shrink-0">
+                  <Clock className="size-4" />
+                </span>
               </div>
-              <div className="text-3xl font-bold text-brand-strong mt-2">
-                {pendingApps.length}
+              <div className="text-3xl font-bold tracking-tight text-brand-strong mt-2">
+                {pendingApps.length + openWebsiteApps}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Awaiting selection decision
+                {openWebsiteApps} from the website · {pendingApps.length} via
+                portal form
               </p>
             </Card>
 
             <Card className="col-span-2 lg:col-span-1 p-5">
-              <div className="flex items-center justify-between text-xs uppercase tracking-wider text-muted-foreground font-semibold">
-                <span>Certificates Issued</span>
-                <Award className="size-4 text-brand-strong" />
+              <div className="flex items-center justify-between gap-2">
+                <span className="eyebrow">Certificates</span>
+                <span className="flex size-8 items-center justify-center rounded-lg bg-accent text-brand-strong shrink-0">
+                  <Award className="size-4" />
+                </span>
               </div>
-              <div className="text-3xl font-bold text-primary mt-2">
+              <div className="text-3xl font-bold tracking-tight text-foreground mt-2">
                 {issuedCertificatesCount}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
@@ -715,19 +753,22 @@ export function AdminDashboard({
 
           {/* Analytics Breakdown: Interns by Field & Interns by Duration */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="p-6 space-y-4">
+            <Card className="p-5 sm:p-6 space-y-4">
               <div className="flex items-center justify-between gap-2">
-                <h3 className="text-base font-bold text-primary">
-                  Interns by Field / Department
-                </h3>
+                <div>
+                  <span className="eyebrow">Capacity Overview</span>
+                  <h3 className="text-base font-bold text-primary mt-0.5">
+                    Interns by Field / Department
+                  </h3>
+                </div>
                 <Badge variant="brand">{db.fields.length} Departments</Badge>
               </div>
               <div className="space-y-3">
                 {db.fields.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">
+                  <div className="rounded-xl border border-dashed border-border bg-muted/20 p-5 text-center text-xs text-muted-foreground">
                     No internship tracks configured yet. Add tracks in Fields,
                     Durations & Batches.
-                  </p>
+                  </div>
                 ) : (
                   db.fields.map((field) => {
                     const count = nonArchived.filter(
@@ -739,7 +780,7 @@ export function AdminDashboard({
                       Math.round((count / Math.max(1, field.totalSeats)) * 100),
                     );
                     return (
-                      <div key={field.id} className="space-y-1">
+                      <div key={field.id} className="space-y-1.5">
                         <div className="flex items-center justify-between gap-2 text-xs">
                           <span className="font-semibold text-foreground">
                             {field.name}{" "}
@@ -769,10 +810,13 @@ export function AdminDashboard({
             </Card>
 
             <div className="space-y-6">
-              <Card className="p-6 space-y-4">
-                <h3 className="text-base font-bold text-primary">
-                  Interns by Duration & Cohort Status
-                </h3>
+              <Card className="p-5 sm:p-6 space-y-4">
+                <div>
+                  <span className="eyebrow">Track Breakdown</span>
+                  <h3 className="text-base font-bold text-primary mt-0.5">
+                    Interns by Duration & Cohort Status
+                  </h3>
+                </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {durationBreakdownMonths.map((m) => {
                     const c = nonArchived.filter(
@@ -796,7 +840,7 @@ export function AdminDashboard({
               </Card>
 
               {/* Pending Applications Quick Approval Queue */}
-              <Card className="p-6 space-y-3">
+              <Card className="p-5 sm:p-6 space-y-3">
                 <div className="flex items-center justify-between gap-2">
                   <h3 className="text-base font-bold text-primary">
                     Pending Applications Queue
@@ -804,9 +848,9 @@ export function AdminDashboard({
                   <Badge variant="brand">{pendingApps.length} Pending</Badge>
                 </div>
                 {pendingApps.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">
+                  <div className="rounded-xl border border-dashed border-border bg-muted/20 p-5 text-center text-xs text-muted-foreground">
                     All submitted applications have been reviewed.
-                  </p>
+                  </div>
                 ) : (
                   <div className="space-y-2.5">
                     {pendingApps.map((app) => (
@@ -844,7 +888,7 @@ export function AdminDashboard({
                                 actorRole: "admin",
                               })
                             }
-                            className="cursor-pointer font-semibold"
+                            className="min-h-9 cursor-pointer font-semibold"
                           >
                             Approve & Notify
                           </Button>
@@ -862,7 +906,7 @@ export function AdminDashboard({
                                 actorRole: "admin",
                               })
                             }
-                            className="text-destructive cursor-pointer"
+                            className="min-h-9 text-destructive cursor-pointer"
                           >
                             Reject
                           </Button>
@@ -913,7 +957,7 @@ export function AdminDashboard({
           <Card className="p-5 space-y-4">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
               <div className="relative flex-1">
-                <Search className="size-4 text-muted-foreground absolute left-3 top-3" />
+                <Search className="size-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <Input
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -928,7 +972,7 @@ export function AdminDashboard({
                   variant="brand"
                   size="sm"
                   onClick={openAddInternModal}
-                  className="cursor-pointer font-semibold"
+                  className="min-h-10 sm:min-h-9 px-3.5 cursor-pointer font-semibold"
                 >
                   <Plus className="size-4" />
                   Add Intern Record
@@ -946,7 +990,7 @@ export function AdminDashboard({
                   variant="outline"
                   size="sm"
                   onClick={() => csvInputRef.current?.click()}
-                  className="cursor-pointer"
+                  className="min-h-10 sm:min-h-9 px-3 cursor-pointer"
                 >
                   <Upload className="size-3.5" />
                   Bulk Import CSV
@@ -958,7 +1002,7 @@ export function AdminDashboard({
                   onClick={() => {
                     void downloadSampleImportCsv();
                   }}
-                  className="cursor-pointer text-xs"
+                  className="min-h-10 sm:min-h-9 px-3 cursor-pointer text-xs"
                 >
                   CSV Template
                 </Button>
@@ -969,7 +1013,7 @@ export function AdminDashboard({
                   onClick={() => {
                     void handleExportFilteredExcel();
                   }}
-                  className="cursor-pointer"
+                  className="min-h-10 sm:min-h-9 px-3 cursor-pointer"
                 >
                   <FileSpreadsheet className="size-3.5 text-brand-strong" />
                   Export Excel
@@ -981,7 +1025,7 @@ export function AdminDashboard({
                   onClick={() => {
                     void handleExportFilteredPdf();
                   }}
-                  className="cursor-pointer"
+                  className="min-h-10 sm:min-h-9 px-3 cursor-pointer"
                 >
                   <Download className="size-3.5" />
                   Export PDF
@@ -990,11 +1034,11 @@ export function AdminDashboard({
             </div>
 
             {/* Multi-Filter Bar */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-2 border-t border-border">
-              <select
+            <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-3 border-t border-border">
+              <Select
                 value={filterField}
                 onChange={(e) => setFilterField(e.target.value)}
-                className="h-9 rounded-lg border border-input bg-background px-2.5 text-xs"
+                className="text-xs"
               >
                 <option value="ALL">All Departments</option>
                 {db.fields.map((f) => (
@@ -1002,12 +1046,12 @@ export function AdminDashboard({
                     {f.name}
                   </option>
                 ))}
-              </select>
+              </Select>
 
-              <select
+              <Select
                 value={filterDuration}
                 onChange={(e) => setFilterDuration(e.target.value)}
-                className="h-9 rounded-lg border border-input bg-background px-2.5 text-xs"
+                className="text-xs"
               >
                 <option value="ALL">All Durations</option>
                 {durationBreakdownMonths.map((m) => (
@@ -1015,12 +1059,12 @@ export function AdminDashboard({
                     {m} {m === 1 ? "Month" : "Months"}
                   </option>
                 ))}
-              </select>
+              </Select>
 
-              <select
+              <Select
                 value={filterBatch}
                 onChange={(e) => setFilterBatch(e.target.value)}
-                className="h-9 rounded-lg border border-input bg-background px-2.5 text-xs"
+                className="text-xs"
               >
                 <option value="ALL">All Batches</option>
                 {db.batches.map((b) => (
@@ -1028,12 +1072,12 @@ export function AdminDashboard({
                     {b.name}
                   </option>
                 ))}
-              </select>
+              </Select>
 
-              <select
+              <Select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="h-9 rounded-lg border border-input bg-background px-2.5 text-xs"
+                className="text-xs"
               >
                 <option value="ALL">All Lifecycle Statuses</option>
                 <option value="Applied">Applied</option>
@@ -1041,13 +1085,13 @@ export function AdminDashboard({
                 <option value="Completed">Completed</option>
                 <option value="Dropped">Dropped</option>
                 <option value="Terminated">Terminated</option>
-              </select>
+              </Select>
 
               <Input
                 type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
-                className="h-9 text-xs"
+                className="text-xs"
                 title="Start Date From"
               />
 
@@ -1056,16 +1100,16 @@ export function AdminDashboard({
                   type="date"
                   value={dateTo}
                   onChange={(e) => setDateTo(e.target.value)}
-                  className="h-9 text-xs min-w-0"
+                  className="text-xs min-w-0"
                   title="Start Date To"
                 />
                 <button
                   type="button"
                   onClick={() => setShowArchived(!showArchived)}
-                  className={`shrink-0 rounded-lg border px-2.5 py-2 text-xs font-medium cursor-pointer ${
+                  className={`shrink-0 h-10 rounded-lg border px-3 text-xs font-medium transition-colors cursor-pointer ${
                     showArchived
-                      ? "border-brand bg-accent text-brand-strong"
-                      : "border-border text-muted-foreground"
+                      ? "border-brand/40 bg-accent text-brand-strong"
+                      : "border-input bg-background text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   {showArchived ? "Archived" : "Active"}
@@ -1076,13 +1120,14 @@ export function AdminDashboard({
 
           {/* Responsive Intern Records Table */}
           {filteredInterns.length === 0 ? (
-            <Card className="p-8 text-center space-y-3">
+            <Card className="p-8 sm:p-10 text-center space-y-3">
+              <Inbox className="size-7 text-muted-foreground mx-auto" />
               <p className="text-sm font-semibold text-primary">
                 {db.interns.length === 0
                   ? "No intern records exist yet."
                   : "No intern records match the current search or filters."}
               </p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground max-w-md mx-auto">
                 {db.interns.length === 0
                   ? "Add an intern manually, bulk import from CSV, or convert a candidate from Website Applications."
                   : "Try clearing one or more filters or toggling between Active and Archived records."}
@@ -1098,7 +1143,6 @@ export function AdminDashboard({
                   <Button
                     type="button"
                     variant="outline"
-                    size="sm"
                     onClick={() => {
                       setSearchQuery("");
                       setFilterField("ALL");
@@ -1120,7 +1164,7 @@ export function AdminDashboard({
               <div className="table-wrapper">
                 <table className="w-full text-left border-collapse text-xs sm:text-sm">
                   <thead>
-                    <tr className="bg-primary text-primary-foreground border-b border-border">
+                    <tr className="bg-muted/60 text-muted-foreground border-b border-border text-xs uppercase tracking-wider">
                       <th className="py-3.5 px-4 font-semibold">
                         Intern ID & Name
                       </th>
@@ -1150,14 +1194,14 @@ export function AdminDashboard({
                           className={`transition-colors ${
                             isHighlighted
                               ? "bg-brand/10 hover:bg-brand/15"
-                              : "hover:bg-muted/50"
+                              : "hover:bg-muted/40"
                           }`}
                         >
                           <td className="py-3.5 px-4">
                             <div className="font-mono text-xs font-bold text-brand-strong">
                               {intern.internId}
                             </div>
-                            <div className="font-bold text-primary">
+                            <div className="font-semibold text-primary">
                               {intern.fullName}
                             </div>
                             <div className="text-xs text-muted-foreground">
@@ -1196,19 +1240,7 @@ export function AdminDashboard({
                             </div>
                           </td>
                           <td className="py-3.5 px-4">
-                            <Badge
-                              variant={
-                                intern.internshipStatus === "Completed" ||
-                                intern.internshipStatus === "Active"
-                                  ? "brand"
-                                  : intern.internshipStatus === "Applied"
-                                    ? "secondary"
-                                    : "default"
-                              }
-                              dot
-                            >
-                              {intern.internshipStatus}
-                            </Badge>
+                            <StatusBadge status={intern.internshipStatus} dot />
                           </td>
                           <td className="py-3.5 px-4 text-right">
                             <div className="inline-flex flex-wrap items-center justify-end gap-1.5">
@@ -1221,7 +1253,7 @@ export function AdminDashboard({
                                   onClick={() =>
                                     void handleCreateInternLogin(intern)
                                   }
-                                  className="cursor-pointer text-[11px] h-7 px-2"
+                                  className="cursor-pointer text-[11px] min-h-9 px-2.5"
                                   title="Create Portal Login"
                                 >
                                   <KeyRound className="size-3" />
@@ -1233,8 +1265,9 @@ export function AdminDashboard({
                               <button
                                 type="button"
                                 onClick={() => openEditInternModal(intern)}
-                                className="rounded-lg border border-border p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
+                                className="inline-flex size-9 items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
                                 title="Edit Record"
+                                aria-label="Edit Record"
                               >
                                 <Edit3 className="size-3.5" />
                               </button>
@@ -1245,8 +1278,9 @@ export function AdminDashboard({
                                   setCertModalType("offer_letter");
                                   setCertModalOpen(true);
                                 }}
-                                className="rounded-lg border border-border p-1.5 text-muted-foreground hover:text-brand-strong hover:bg-muted cursor-pointer"
+                                className="inline-flex size-9 items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-brand-strong hover:bg-muted transition-colors cursor-pointer"
                                 title="Letters & Certificate"
+                                aria-label="Letters & Certificate"
                               >
                                 <FileText className="size-3.5" />
                               </button>
@@ -1261,8 +1295,9 @@ export function AdminDashboard({
                                     actorRole: "admin",
                                   })
                                 }
-                                className="rounded-lg border border-border p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
+                                className="inline-flex size-9 items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
                                 title={intern.archived ? "Restore" : "Archive"}
+                                aria-label={intern.archived ? "Restore" : "Archive"}
                               >
                                 <Archive className="size-3.5" />
                               </button>
@@ -1277,8 +1312,9 @@ export function AdminDashboard({
                                     actorRole: "admin",
                                   })
                                 }
-                                className="rounded-lg border border-border p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+                                className="inline-flex size-9 items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
                                 title="Delete Record"
+                                aria-label="Delete Record"
                               >
                                 <Trash2 className="size-3.5" />
                               </button>
@@ -1313,7 +1349,7 @@ export function AdminDashboard({
       {activeTab === "fields" && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Fields / Departments Column */}
-          <Card className="lg:col-span-2 p-6 space-y-5">
+          <Card className="lg:col-span-2 p-5 sm:p-6 space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Layers className="size-4 text-brand-strong" />
@@ -1325,9 +1361,9 @@ export function AdminDashboard({
             </div>
 
             {db.fields.length === 0 ? (
-              <p className="text-xs text-muted-foreground rounded-xl border border-dashed border-border p-4 text-center">
+              <div className="rounded-xl border border-dashed border-border bg-muted/20 p-6 text-center text-xs text-muted-foreground">
                 No department tracks created yet. Add your first track below.
-              </p>
+              </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {db.fields.map((f) => (
@@ -1336,7 +1372,7 @@ export function AdminDashboard({
                     className={`rounded-xl border p-4 flex flex-col justify-between gap-3 ${
                       f.active
                         ? "border-border bg-muted/30"
-                        : "border-dashed border-border bg-muted/10 opacity-60"
+                        : "border-dashed border-border bg-muted/10 opacity-70"
                     }`}
                   >
                     <div>
@@ -1344,9 +1380,10 @@ export function AdminDashboard({
                         <span className="font-bold text-primary text-sm">
                           {f.name}
                         </span>
-                        <Badge variant={f.active ? "brand" : "secondary"}>
-                          {f.active ? "Active" : "Disabled"}
-                        </Badge>
+                        <StatusBadge
+                          status={f.active ? "Active" : "Disabled"}
+                          dot
+                        />
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">
                         {f.podName || "General Pod"} · Seats: {f.filledSeats}/
@@ -1368,7 +1405,7 @@ export function AdminDashboard({
                             actorRole: "admin",
                           })
                         }
-                        className="text-xs font-semibold text-brand-strong hover:underline cursor-pointer"
+                        className="min-h-8 inline-flex items-center text-xs font-semibold text-brand-strong hover:underline cursor-pointer"
                       >
                         {f.active ? "Disable Track" : "Enable Track"}
                       </button>
@@ -1447,7 +1484,7 @@ export function AdminDashboard({
 
           {/* Durations & Cohort Batches Column */}
           <div className="space-y-6">
-            <Card className="p-6 space-y-4">
+            <Card className="p-5 sm:p-6 space-y-4">
               <h3 className="text-base font-bold text-primary">
                 Available Durations
               </h3>
@@ -1460,7 +1497,7 @@ export function AdminDashboard({
                   {db.durations.map((d) => (
                     <div
                       key={d.id}
-                      className="flex items-center justify-between gap-2 rounded-lg border border-border p-3 text-xs"
+                      className="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/20 p-3 text-xs"
                     >
                       <div>
                         <strong className="text-foreground">{d.label}</strong>
@@ -1477,7 +1514,7 @@ export function AdminDashboard({
                             actorName: adminName,
                           })
                         }
-                        className="text-brand-strong font-semibold hover:underline cursor-pointer shrink-0"
+                        className="min-h-8 inline-flex items-center text-brand-strong font-semibold hover:underline cursor-pointer shrink-0"
                       >
                         {d.active ? "Active" : "Disabled"}
                       </button>
@@ -1517,14 +1554,14 @@ export function AdminDashboard({
                   type="submit"
                   variant="outline"
                   size="sm"
-                  className="w-full justify-center cursor-pointer"
+                  className="w-full min-h-9 justify-center cursor-pointer"
                 >
                   Add Duration Option
                 </Button>
               </form>
             </Card>
 
-            <Card className="p-6 space-y-4">
+            <Card className="p-5 sm:p-6 space-y-4">
               <div className="flex items-center gap-2">
                 <Calendar className="size-4 text-brand-strong" />
                 <h3 className="text-base font-bold text-primary">
@@ -1540,7 +1577,7 @@ export function AdminDashboard({
                   {db.batches.map((b) => (
                     <div
                       key={b.id}
-                      className="rounded-lg border border-border p-3 text-xs flex items-center justify-between gap-2"
+                      className="rounded-lg border border-border bg-muted/20 p-3 text-xs flex items-center justify-between gap-2"
                     >
                       <div>
                         <div className="font-bold text-foreground">
@@ -1550,7 +1587,7 @@ export function AdminDashboard({
                           {b.startDate} → {b.endDate}
                         </div>
                       </div>
-                      <Badge variant="brand">{b.status}</Badge>
+                      <StatusBadge status={b.status} dot />
                     </div>
                   ))}
                 </div>
@@ -1595,7 +1632,7 @@ export function AdminDashboard({
                   type="submit"
                   variant="brand"
                   size="sm"
-                  className="w-full justify-center cursor-pointer font-semibold"
+                  className="w-full min-h-9 justify-center cursor-pointer font-semibold"
                 >
                   Create Cohort Batch
                 </Button>
@@ -1622,7 +1659,7 @@ export function AdminDashboard({
          ============================================================ */}
       {activeTab === "attendance" && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="p-6 space-y-4">
+          <Card className="p-5 sm:p-6 space-y-4">
             <h3 className="text-lg font-bold text-primary">
               Mark Daily / Weekly Attendance
             </h3>
@@ -1645,10 +1682,9 @@ export function AdminDashboard({
               className="space-y-3"
             >
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <select
+                <Select
                   value={effectiveAttInternId}
                   onChange={(e) => setAttInternId(e.target.value)}
-                  className="h-10 rounded-lg border border-input bg-background px-3 text-sm"
                 >
                   {nonArchived.length === 0 ? (
                     <option value="">No interns available</option>
@@ -1659,7 +1695,7 @@ export function AdminDashboard({
                       </option>
                     ))
                   )}
-                </select>
+                </Select>
                 <Input
                   type="date"
                   value={attDate}
@@ -1672,10 +1708,10 @@ export function AdminDashboard({
                     key={st}
                     type="button"
                     onClick={() => setAttStatus(st)}
-                    className={`h-9 rounded-lg border text-xs font-semibold cursor-pointer ${
+                    className={`min-h-10 rounded-lg border text-xs font-semibold transition-colors cursor-pointer ${
                       attStatus === st
                         ? "border-brand bg-brand text-brand-foreground"
-                        : "border-border bg-background text-muted-foreground"
+                        : "border-border bg-background text-muted-foreground hover:text-foreground"
                     }`}
                   >
                     {st}
@@ -1698,7 +1734,7 @@ export function AdminDashboard({
             </form>
 
             <div className="pt-4 border-t border-border space-y-2">
-              <h4 className="text-xs font-semibold uppercase text-muted-foreground">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Recent Attendance Records
               </h4>
               {db.attendance.length === 0 ? (
@@ -1709,7 +1745,7 @@ export function AdminDashboard({
                 db.attendance.slice(0, 8).map((a) => (
                   <div
                     key={a.id}
-                    className="flex items-center justify-between gap-2 rounded-lg border border-border p-2.5 text-xs"
+                    className="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/20 p-2.5 text-xs"
                   >
                     <div>
                       <strong className="text-foreground">
@@ -1719,25 +1755,24 @@ export function AdminDashboard({
                         ({a.date})
                       </span>
                     </div>
-                    <Badge
-                      variant={a.status === "Present" ? "brand" : "secondary"}
-                    >
-                      {a.status}
-                    </Badge>
+                    <StatusBadge status={a.status} dot />
                   </div>
                 ))
               )}
             </div>
           </Card>
 
-          <Card className="p-6 space-y-4">
+          <Card className="p-5 sm:p-6 space-y-4">
             <h3 className="text-lg font-bold text-primary">
               Student Leave Requests Approval
             </h3>
             {db.leaves.length === 0 ? (
-              <p className="text-xs text-muted-foreground rounded-xl border border-dashed border-border p-6 text-center">
-                No leave requests submitted yet.
-              </p>
+              <div className="rounded-xl border border-dashed border-border bg-muted/20 px-6 py-8 text-center space-y-1.5">
+                <Calendar className="size-6 text-muted-foreground mx-auto" />
+                <p className="text-xs text-muted-foreground">
+                  No leave requests submitted yet.
+                </p>
+              </div>
             ) : (
               <div className="space-y-3">
                 {db.leaves.map((lv) => (
@@ -1750,17 +1785,7 @@ export function AdminDashboard({
                         <strong className="text-sm text-primary">
                           {lv.internName}
                         </strong>
-                        <Badge
-                          variant={
-                            lv.status === "Approved"
-                              ? "brand"
-                              : lv.status === "Rejected"
-                                ? "default"
-                                : "secondary"
-                          }
-                        >
-                          {lv.status}
-                        </Badge>
+                        <StatusBadge status={lv.status} dot />
                       </div>
                       <div className="font-mono text-foreground">
                         {lv.startDate} → {lv.endDate}
@@ -1781,7 +1806,7 @@ export function AdminDashboard({
                               actorName: adminName,
                             })
                           }
-                          className="cursor-pointer"
+                          className="min-h-9 cursor-pointer font-semibold"
                         >
                           Approve
                         </Button>
@@ -1797,7 +1822,7 @@ export function AdminDashboard({
                               actorName: adminName,
                             })
                           }
-                          className="text-destructive cursor-pointer"
+                          className="min-h-9 text-destructive cursor-pointer"
                         >
                           Reject
                         </Button>
@@ -1816,13 +1841,13 @@ export function AdminDashboard({
          ============================================================ */}
       {activeTab === "certificates" && (
         <div className="space-y-6">
-          <Card className="p-6 space-y-4">
+          <Card className="p-5 sm:p-6 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <span className="eyebrow">
-                  ELIGIBILITY & CREDENTIAL ISSUANCE
+                  Eligibility & Credential Issuance
                 </span>
-                <h3 className="text-lg font-bold text-primary">
+                <h3 className="text-lg font-bold text-primary mt-0.5">
                   Issue Official QR-Verified Certificates
                 </h3>
                 <p className="text-xs text-muted-foreground">
@@ -1837,10 +1862,13 @@ export function AdminDashboard({
             </div>
 
             {nonArchived.length === 0 ? (
-              <p className="text-xs text-muted-foreground rounded-xl border border-dashed border-border p-6 text-center">
-                No intern records yet. Certificates become eligible once an
-                intern is marked Completed with a completed mentor evaluation.
-              </p>
+              <div className="rounded-xl border border-dashed border-border bg-muted/20 px-6 py-8 text-center space-y-1.5">
+                <Award className="size-6 text-muted-foreground mx-auto" />
+                <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                  No intern records yet. Certificates become eligible once an
+                  intern is marked Completed with a completed mentor evaluation.
+                </p>
+              </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {nonArchived.map((intern) => {
@@ -1860,20 +1888,15 @@ export function AdminDashboard({
                             {intern.internId}
                           </span>
                           <div className="flex flex-wrap items-center gap-1.5">
-                            <Badge
-                              variant={
-                                intern.internshipStatus === "Completed"
-                                  ? "brand"
-                                  : "secondary"
-                              }
+                            <StatusBadge status={intern.internshipStatus} dot />
+                            <StatusBadge
+                              status={evalRec ? "Eval Completed" : "Eval Pending"}
+                              tone={evalRec ? "brand" : "warning"}
                             >
-                              {intern.internshipStatus}
-                            </Badge>
-                            <Badge variant={evalRec ? "brand" : "outline"}>
                               {evalRec
                                 ? `Eval: ${evalRec.grade} (${evalRec.totalMarks}%)`
                                 : "Eval Pending"}
-                            </Badge>
+                            </StatusBadge>
                           </div>
                         </div>
                         <h4 className="text-base font-bold text-primary mt-1.5">
@@ -1888,9 +1911,7 @@ export function AdminDashboard({
                             <span className="font-mono font-bold text-brand-strong">
                               {certRec.certificateNumber}
                             </span>
-                            <span className="font-semibold">
-                              Status: {certRec.status}
-                            </span>
+                            <StatusBadge status={certRec.status} dot />
                           </div>
                         )}
                       </div>
@@ -1911,7 +1932,7 @@ export function AdminDashboard({
                                 actorRole: "admin",
                               })
                             }
-                            className="cursor-pointer font-semibold"
+                            className="min-h-9 cursor-pointer font-semibold"
                           >
                             <Award className="size-3.5" />
                             {isEligible
@@ -1929,7 +1950,7 @@ export function AdminDashboard({
                                 setCertModalType("certificate");
                                 setCertModalOpen(true);
                               }}
-                              className="cursor-pointer font-semibold"
+                              className="min-h-9 cursor-pointer font-semibold"
                             >
                               <Award className="size-3.5" />
                               View / Print PDF
@@ -1947,7 +1968,7 @@ export function AdminDashboard({
                                   actorRole: "admin",
                                 })
                               }
-                              className="cursor-pointer"
+                              className="min-h-9 cursor-pointer"
                             >
                               <RotateCcw className="size-3.5" />
                               Re-Issue
@@ -1968,7 +1989,7 @@ export function AdminDashboard({
                                     actorRole: "admin",
                                   })
                                 }
-                                className="text-destructive hover:bg-destructive/10 cursor-pointer"
+                                className="min-h-9 text-destructive hover:bg-destructive/10 cursor-pointer"
                               >
                                 <XCircle className="size-3.5" />
                                 Revoke
@@ -1986,7 +2007,7 @@ export function AdminDashboard({
                             setCertModalType("offer_letter");
                             setCertModalOpen(true);
                           }}
-                          className="cursor-pointer text-xs"
+                          className="min-h-9 cursor-pointer text-xs"
                         >
                           Letters
                         </Button>
@@ -2006,11 +2027,13 @@ export function AdminDashboard({
       {activeTab === "reports_system" && (
         <div className="space-y-6">
           {/* Reports Center (Req 3.11) */}
-          <Card className="p-6 space-y-4">
-            <span className="eyebrow">EXECUTIVE ANALYTICS & EXPORT REPORTS</span>
-            <h3 className="text-lg font-bold text-primary">
-              Generate Official Portal Reports (PDF & Excel)
-            </h3>
+          <Card className="p-5 sm:p-6 space-y-4">
+            <div>
+              <span className="eyebrow">Executive Analytics & Export Reports</span>
+              <h3 className="text-lg font-bold text-primary mt-0.5">
+                Generate Official Portal Reports (PDF & Excel)
+              </h3>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Report 1 */}
@@ -2032,7 +2055,7 @@ export function AdminDashboard({
                     onClick={() => {
                       void handleExportFilteredPdf();
                     }}
-                    className="flex-1 justify-center cursor-pointer"
+                    className="flex-1 min-h-9 justify-center cursor-pointer font-semibold"
                   >
                     Export PDF
                   </Button>
@@ -2043,7 +2066,7 @@ export function AdminDashboard({
                     onClick={() => {
                       void handleExportFilteredExcel();
                     }}
-                    className="flex-1 justify-center cursor-pointer"
+                    className="flex-1 min-h-9 justify-center cursor-pointer"
                   >
                     Export Excel
                   </Button>
@@ -2100,7 +2123,7 @@ export function AdminDashboard({
                         ]),
                       });
                     }}
-                    className="flex-1 justify-center cursor-pointer"
+                    className="flex-1 min-h-9 justify-center cursor-pointer font-semibold"
                   >
                     Export PDF
                   </Button>
@@ -2131,7 +2154,7 @@ export function AdminDashboard({
                         ]),
                       );
                     }}
-                    className="flex-1 justify-center cursor-pointer"
+                    className="flex-1 min-h-9 justify-center cursor-pointer"
                   >
                     Export Excel
                   </Button>
@@ -2181,7 +2204,7 @@ export function AdminDashboard({
                         ]),
                       });
                     }}
-                    className="flex-1 justify-center cursor-pointer"
+                    className="flex-1 min-h-9 justify-center cursor-pointer font-semibold"
                   >
                     Export PDF
                   </Button>
@@ -2216,7 +2239,7 @@ export function AdminDashboard({
                         ]),
                       );
                     }}
-                    className="flex-1 justify-center cursor-pointer"
+                    className="flex-1 min-h-9 justify-center cursor-pointer"
                   >
                     Export Excel
                   </Button>
@@ -2228,7 +2251,7 @@ export function AdminDashboard({
           {/* Announcements + Database Backups Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Post Announcement (Req 3.12) */}
-            <Card className="p-6 space-y-4">
+            <Card className="p-5 sm:p-6 space-y-4">
               <div className="flex items-center gap-2">
                 <Megaphone className="size-4 text-brand-strong" />
                 <h3 className="text-base font-bold text-primary">
@@ -2263,10 +2286,10 @@ export function AdminDashboard({
                   onChange={(e) => setAnnTitle(e.target.value)}
                 />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <select
+                  <Select
                     value={annAudience}
                     onChange={(e) => setAnnAudience(e.target.value)}
-                    className="h-10 rounded-lg border border-input bg-background px-3 text-xs"
+                    className="text-xs"
                   >
                     <option value="All Interns">All Interns</option>
                     {db.batches.map((b) => (
@@ -2279,20 +2302,20 @@ export function AdminDashboard({
                         Field: {f.name}
                       </option>
                     ))}
-                  </select>
-                  <select
+                  </Select>
+                  <Select
                     value={annPriority}
                     onChange={(e) =>
                       setAnnPriority(
                         e.target.value as "Normal" | "Important" | "Urgent",
                       )
                     }
-                    className="h-10 rounded-lg border border-input bg-background px-3 text-xs"
+                    className="text-xs"
                   >
                     <option value="Important">Important</option>
                     <option value="Urgent">Urgent</option>
                     <option value="Normal">Normal</option>
-                  </select>
+                  </Select>
                 </div>
                 <Textarea
                   rows={3}
@@ -2312,7 +2335,7 @@ export function AdminDashboard({
             </Card>
 
             {/* Database Backups (Req 4) */}
-            <Card className="p-6 space-y-4">
+            <Card className="p-5 sm:p-6 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <Database className="size-4 text-brand-strong" />
@@ -2334,7 +2357,7 @@ export function AdminDashboard({
                         actorRole: "admin",
                       })
                     }
-                    className="cursor-pointer font-semibold"
+                    className="min-h-9 cursor-pointer font-semibold"
                   >
                     Create Snapshot
                   </Button>
@@ -2343,7 +2366,7 @@ export function AdminDashboard({
                     variant="outline"
                     size="sm"
                     onClick={handleDownloadJsonBackup}
-                    className="cursor-pointer"
+                    className="min-h-9 cursor-pointer"
                   >
                     Download JSON
                   </Button>
@@ -2352,9 +2375,9 @@ export function AdminDashboard({
 
               <div className="space-y-2">
                 {db.backups.length === 0 ? (
-                  <p className="text-xs text-muted-foreground rounded-lg border border-dashed border-border p-4 text-center">
+                  <div className="rounded-xl border border-dashed border-border bg-muted/20 p-5 text-center text-xs text-muted-foreground">
                     No backup snapshots created yet.
-                  </p>
+                  </div>
                 ) : (
                   db.backups.map((bkp) => (
                     <div
@@ -2382,7 +2405,7 @@ export function AdminDashboard({
           </div>
 
           {/* Immutable Security Audit Log (Req 4) */}
-          <Card className="p-6 space-y-4">
+          <Card className="p-5 sm:p-6 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="size-4 text-brand-strong" />
@@ -2393,9 +2416,9 @@ export function AdminDashboard({
               <Badge variant="outline">{db.auditLogs.length} Events</Badge>
             </div>
             {db.auditLogs.length === 0 ? (
-              <p className="text-xs text-muted-foreground">
+              <div className="rounded-xl border border-dashed border-border bg-muted/20 p-5 text-center text-xs text-muted-foreground">
                 No audit events recorded yet.
-              </p>
+              </div>
             ) : (
               <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
                 {db.auditLogs.map((log) => (
@@ -2428,34 +2451,37 @@ export function AdminDashboard({
       {/* Add / Edit Intern Record Modal */}
       {recordModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs overflow-y-auto"
           role="dialog"
           aria-modal="true"
           onClick={(e) => {
             if (e.target === e.currentTarget) setRecordModalOpen(false);
           }}
         >
-          <div className="w-full max-w-2xl rounded-2xl border border-border bg-card p-6 sm:p-8 shadow-2xl my-auto max-h-[92vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 mb-4 border-b border-border">
-              <h3 className="text-xl font-bold text-primary">
-                {editingIntern
-                  ? `Edit Intern Record (${editingIntern.internId})`
-                  : "Add New Intern Record"}
-              </h3>
+          <div className="w-full max-w-2xl rounded-2xl border border-border bg-card p-5 sm:p-7 shadow-2xl my-auto max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between gap-3 pb-3.5 mb-4 border-b border-border">
+              <div>
+                <span className="eyebrow">Intern Record</span>
+                <h3 className="text-xl font-bold text-primary mt-0.5">
+                  {editingIntern
+                    ? `Edit Intern Record (${editingIntern.internId})`
+                    : "Add New Intern Record"}
+                </h3>
+              </div>
               <button
                 type="button"
                 onClick={() => setRecordModalOpen(false)}
                 aria-label="Close modal"
-                className="text-sm text-muted-foreground hover:text-foreground cursor-pointer"
+                className="inline-flex size-10 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer shrink-0"
               >
-                ✕
+                <X className="size-5" />
               </button>
             </div>
 
             <form onSubmit={handleSaveInternRecord} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold uppercase text-primary">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Full Name *
                   </label>
                   <Input
@@ -2464,8 +2490,8 @@ export function AdminDashboard({
                     onChange={(e) => setFormFullName(e.target.value)}
                   />
                 </div>
-                <div>
-                  <label className="text-xs font-semibold uppercase text-primary">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Father&apos;s Name
                   </label>
                   <Input
@@ -2473,8 +2499,8 @@ export function AdminDashboard({
                     onChange={(e) => setFormFatherName(e.target.value)}
                   />
                 </div>
-                <div>
-                  <label className="text-xs font-semibold uppercase text-primary">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     CNIC / Student ID *
                   </label>
                   <Input
@@ -2483,8 +2509,8 @@ export function AdminDashboard({
                     onChange={(e) => setFormCnic(e.target.value)}
                   />
                 </div>
-                <div>
-                  <label className="text-xs font-semibold uppercase text-primary">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Email *
                   </label>
                   <Input
@@ -2494,8 +2520,8 @@ export function AdminDashboard({
                     onChange={(e) => setFormEmail(e.target.value)}
                   />
                 </div>
-                <div>
-                  <label className="text-xs font-semibold uppercase text-primary">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Phone
                   </label>
                   <Input
@@ -2503,8 +2529,8 @@ export function AdminDashboard({
                     onChange={(e) => setFormPhone(e.target.value)}
                   />
                 </div>
-                <div>
-                  <label className="text-xs font-semibold uppercase text-primary">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     City
                   </label>
                   <Input
@@ -2512,8 +2538,8 @@ export function AdminDashboard({
                     onChange={(e) => setFormCity(e.target.value)}
                   />
                 </div>
-                <div>
-                  <label className="text-xs font-semibold uppercase text-primary">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     University
                   </label>
                   <Input
@@ -2521,8 +2547,8 @@ export function AdminDashboard({
                     onChange={(e) => setFormUni(e.target.value)}
                   />
                 </div>
-                <div>
-                  <label className="text-xs font-semibold uppercase text-primary">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Degree & CGPA
                   </label>
                   <div className="grid grid-cols-2 gap-2">
@@ -2538,14 +2564,13 @@ export function AdminDashboard({
                     />
                   </div>
                 </div>
-                <div>
-                  <label className="text-xs font-semibold uppercase text-primary">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Department / Field
                   </label>
-                  <select
+                  <Select
                     value={formFieldId}
                     onChange={(e) => setFormFieldId(e.target.value)}
-                    className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
                   >
                     {db.fields.length === 0 ? (
                       <option value="">No fields available</option>
@@ -2556,16 +2581,15 @@ export function AdminDashboard({
                         </option>
                       ))
                     )}
-                  </select>
+                  </Select>
                 </div>
-                <div>
-                  <label className="text-xs font-semibold uppercase text-primary">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Duration (Months)
                   </label>
-                  <select
+                  <Select
                     value={formDuration}
                     onChange={(e) => setFormDuration(Number(e.target.value))}
-                    className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
                   >
                     {db.durations.length === 0
                       ? [1, 2, 3, 6].map((m) => (
@@ -2578,10 +2602,10 @@ export function AdminDashboard({
                             {d.months} {d.months === 1 ? "Month" : "Months"}
                           </option>
                         ))}
-                  </select>
+                  </Select>
                 </div>
-                <div>
-                  <label className="text-xs font-semibold uppercase text-primary">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Start Date (End Date Auto-Calculated)
                   </label>
                   <Input
@@ -2589,18 +2613,17 @@ export function AdminDashboard({
                     value={formStartDate}
                     onChange={(e) => setFormStartDate(e.target.value)}
                   />
-                  <span className="text-[11px] text-brand-strong font-semibold">
+                  <span className="block text-[11px] text-brand-strong font-semibold">
                     Auto End Date: {calculatedEndDate}
                   </span>
                 </div>
-                <div>
-                  <label className="text-xs font-semibold uppercase text-primary">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Assigned Mentor
                   </label>
-                  <select
+                  <Select
                     value={formMentorId}
                     onChange={(e) => setFormMentorId(e.target.value)}
-                    className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
                   >
                     <option value="">Unassigned</option>
                     {db.mentors.map((m) => (
@@ -2608,16 +2631,15 @@ export function AdminDashboard({
                         {m.name} ({m.department})
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
-                <div>
-                  <label className="text-xs font-semibold uppercase text-primary">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Cohort Batch
                   </label>
-                  <select
+                  <Select
                     value={formBatchId}
                     onChange={(e) => setFormBatchId(e.target.value)}
-                    className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
                   >
                     <option value="">Unassigned</option>
                     {db.batches.map((b) => (
@@ -2625,30 +2647,29 @@ export function AdminDashboard({
                         {b.name}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
-                <div>
-                  <label className="text-xs font-semibold uppercase text-primary">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Internship Lifecycle Status
                   </label>
-                  <select
+                  <Select
                     value={formStatus}
                     onChange={(e) =>
                       setFormStatus(e.target.value as InternshipStatus)
                     }
-                    className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
                   >
                     <option value="Applied">Applied</option>
                     <option value="Active">Active</option>
                     <option value="Completed">Completed</option>
                     <option value="Dropped">Dropped</option>
                     <option value="Terminated">Terminated</option>
-                  </select>
+                  </Select>
                 </div>
               </div>
 
-              <div>
-                <label className="text-xs font-semibold uppercase text-primary">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Skills (Comma separated)
                 </label>
                 <Input

@@ -8,8 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar } from "@/components/ui/avatar";
+import { StatusBadge, type StatusTone } from "@/components/portal/status-badge";
 import type { DocumentType } from "@/components/portal/certificate-modal";
-import type { PortalState, InternRecord, TaskItem } from "@/lib/types";
+import type {
+  PortalState,
+  InternRecord,
+  TaskItem,
+  TaskStatus,
+} from "@/lib/types";
 import {
   Award,
   CheckCircle2,
@@ -23,7 +29,17 @@ import {
   Megaphone,
   UserCheck,
   ShieldCheck,
+  Inbox,
+  X,
 } from "lucide-react";
+
+const TASK_STATUS_TONES: Record<TaskStatus, StatusTone> = {
+  Assigned: "neutral",
+  Submitted: "warning",
+  "Needs Revision": "warning",
+  Approved: "brand",
+  Rejected: "danger",
+};
 
 const CertificateModal = dynamic(
   () =>
@@ -224,29 +240,29 @@ export function InternDashboard({
   return (
     <div className="space-y-6">
       {/* Top Profile Banner */}
-      <Card inverted className="p-6 sm:p-8">
+      <Card className="p-5 sm:p-7">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
             <Avatar
               initials={initials}
-              className="size-16 text-lg ring-2 ring-brand"
+              className="size-16 text-lg ring-2 ring-brand/70 shrink-0"
             />
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-mono text-xs font-bold text-brand bg-brand/15 px-2.5 py-0.5 rounded border border-brand/30">
+                <span className="font-mono text-xs font-semibold text-brand-strong bg-accent px-2.5 py-0.5 rounded-full border border-brand/30">
                   {intern.internId}
                 </span>
-                <Badge variant="brand" dot>
+                <StatusBadge status={intern.internshipStatus} dot>
                   Status: {intern.internshipStatus}
-                </Badge>
-                <Badge variant="secondary">
+                </StatusBadge>
+                <StatusBadge status={intern.applicationStatus}>
                   Application: {intern.applicationStatus}
-                </Badge>
+                </StatusBadge>
               </div>
-              <h2 className="mt-2 text-2xl sm:text-3xl font-bold text-white">
+              <h2 className="mt-2.5 text-2xl sm:text-3xl font-bold tracking-tight text-primary">
                 {intern.fullName}
               </h2>
-              <p className="text-xs sm:text-sm text-white/75 mt-0.5 break-words">
+              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 break-words">
                 {intern.fieldName} Intern
                 {intern.batchName ? ` · ${intern.batchName}` : ""} (
                 {intern.durationMonths} Months: {intern.startDate} →{" "}
@@ -256,14 +272,12 @@ export function InternDashboard({
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 shrink-0">
-            <div className="rounded-xl bg-white/10 border border-white/15 px-4 py-3">
-              <div className="text-[11px] uppercase tracking-wider text-white/60">
-                Task Progress
-              </div>
-              <div className="text-xl font-bold text-brand mt-0.5">
+            <div className="rounded-xl bg-muted/50 border border-border px-4 py-3">
+              <div className="eyebrow">Task Progress</div>
+              <div className="text-xl font-bold text-brand-strong mt-1">
                 {intern.progressPercentage}%
               </div>
-              <div className="mt-1.5 h-1.5 w-full rounded-full bg-white/15 overflow-hidden">
+              <div className="mt-1.5 h-1.5 w-full rounded-full bg-secondary overflow-hidden">
                 <div
                   className="h-full bg-brand rounded-full"
                   style={{ width: `${intern.progressPercentage}%` }}
@@ -271,33 +285,29 @@ export function InternDashboard({
               </div>
             </div>
 
-            <div className="rounded-xl bg-white/10 border border-white/15 px-4 py-3">
-              <div className="text-[11px] uppercase tracking-wider text-white/60">
-                Attendance
-              </div>
-              <div className="text-xl font-bold text-white mt-0.5">
+            <div className="rounded-xl bg-muted/50 border border-border px-4 py-3">
+              <div className="eyebrow">Attendance</div>
+              <div className="text-xl font-bold text-foreground mt-1">
                 {intern.attendancePercentage}%
               </div>
-              <div className="text-[11px] text-white/60 mt-1 truncate">
+              <div className="text-[11px] text-muted-foreground mt-1 truncate">
                 Mentor: {intern.mentorName || "Unassigned"}
               </div>
             </div>
 
-            <div className="col-span-2 sm:col-span-1 rounded-xl bg-white/10 border border-white/15 px-4 py-3 flex flex-col justify-between">
-              <div className="text-[11px] uppercase tracking-wider text-white/60">
-                Certificate Status
-              </div>
+            <div className="col-span-2 sm:col-span-1 rounded-xl bg-muted/50 border border-border px-4 py-3 flex flex-col justify-between">
+              <div className="eyebrow">Certificate</div>
               {myCertificate ? (
                 <button
                   type="button"
                   onClick={() => openDocument("certificate")}
-                  className="mt-1 inline-flex items-center gap-1.5 text-xs font-bold text-brand hover:underline cursor-pointer"
+                  className="mt-1 inline-flex items-center gap-1.5 min-h-8 text-xs font-semibold text-brand-strong hover:underline cursor-pointer text-left"
                 >
-                  <Award className="size-4" />
+                  <Award className="size-4 shrink-0" />
                   Download PDF →
                 </button>
               ) : (
-                <div className="text-xs font-semibold text-white/80 mt-1">
+                <div className="text-xs font-semibold text-foreground mt-1">
                   {intern.internshipStatus === "Completed"
                     ? "Ready for Admin Issue"
                     : "In Progress"}
@@ -308,50 +318,64 @@ export function InternDashboard({
         </div>
       </Card>
 
-      {/* Sub-Navigation Tabs */}
-      <div className="flex flex-wrap gap-2 border-b border-border pb-3">
+      {/* Sub-Navigation Tabs (Horizontally scrollable pill nav) */}
+      <div
+        className="flex items-center gap-2 overflow-x-auto border-b border-border pb-3 -mx-1 px-1"
+        role="tablist"
+        aria-label="Intern workspace sections"
+      >
         {[
-          { id: "overview", label: "My Profile & Placement" },
-          { id: "tasks", label: `My Tasks (${myTasks.length})` },
-          { id: "attendance", label: "Attendance & Leave" },
-          { id: "evaluation", label: "Evaluation & Feedback" },
-          { id: "certificates", label: "Certificates & Letters" },
-        ].map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() =>
-              setActiveTab(
-                t.id as
-                  | "overview"
-                  | "tasks"
-                  | "attendance"
-                  | "evaluation"
-                  | "certificates",
-              )
-            }
-            className={`rounded-lg px-3.5 py-2 text-xs sm:text-sm font-semibold transition-colors cursor-pointer ${
-              activeTab === t.id
-                ? "bg-primary text-primary-foreground"
-                : "bg-card border border-border text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+          { id: "overview" as const, label: "My Profile & Placement", count: null },
+          { id: "tasks" as const, label: "My Tasks", count: myTasks.length },
+          { id: "attendance" as const, label: "Attendance & Leave", count: null },
+          { id: "evaluation" as const, label: "Evaluation & Feedback", count: null },
+          { id: "certificates" as const, label: "Certificates & Letters", count: null },
+        ].map((t) => {
+          const isActive = activeTab === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => setActiveTab(t.id)}
+              className={`shrink-0 whitespace-nowrap min-h-10 inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs sm:text-sm font-medium transition-colors cursor-pointer ${
+                isActive
+                  ? "bg-brand text-brand-foreground font-semibold shadow-xs"
+                  : "bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted/60"
+              }`}
+            >
+              <span>{t.label}</span>
+              {t.count !== null && (
+                <span
+                  className={`inline-flex min-w-5 h-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold ${
+                    isActive
+                      ? "bg-brand-foreground/15 text-brand-foreground"
+                      : "bg-secondary text-secondary-foreground"
+                  }`}
+                >
+                  {t.count}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* TAB 1: OVERVIEW & PROFILE */}
       {activeTab === "overview" && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="lg:col-span-2 p-6 space-y-5">
-            <h3 className="text-lg font-bold text-primary">
-              Personal, Academic & Placement Record
-            </h3>
+          <Card className="lg:col-span-2 p-5 sm:p-6 space-y-5">
+            <div>
+              <span className="eyebrow">Placement Dossier</span>
+              <h3 className="text-lg font-bold text-primary mt-0.5">
+                Personal, Academic & Placement Record
+              </h3>
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs sm:text-sm">
               <div className="rounded-xl border border-border bg-muted/40 p-3.5">
-                <span className="text-[11px] uppercase text-muted-foreground font-semibold">
+                <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
                   Full Name & Father&apos;s Name
                 </span>
                 <div className="font-semibold text-foreground mt-0.5 break-words">
@@ -360,7 +384,7 @@ export function InternDashboard({
                 </div>
               </div>
               <div className="rounded-xl border border-border bg-muted/40 p-3.5">
-                <span className="text-[11px] uppercase text-muted-foreground font-semibold">
+                <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
                   CNIC / Student ID
                 </span>
                 <div className="font-mono font-semibold text-foreground mt-0.5 break-all">
@@ -368,7 +392,7 @@ export function InternDashboard({
                 </div>
               </div>
               <div className="rounded-xl border border-border bg-muted/40 p-3.5">
-                <span className="text-[11px] uppercase text-muted-foreground font-semibold">
+                <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
                   University & Degree
                 </span>
                 <div className="font-semibold text-foreground mt-0.5 break-words">
@@ -383,7 +407,7 @@ export function InternDashboard({
                 )}
               </div>
               <div className="rounded-xl border border-border bg-muted/40 p-3.5">
-                <span className="text-[11px] uppercase text-muted-foreground font-semibold">
+                <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
                   Contact & City
                 </span>
                 <div className="font-semibold text-foreground mt-0.5 break-all">
@@ -395,7 +419,7 @@ export function InternDashboard({
                 </div>
               </div>
               <div className="rounded-xl border border-border bg-muted/40 p-3.5">
-                <span className="text-[11px] uppercase text-muted-foreground font-semibold">
+                <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
                   Assigned Supervisor / Mentor
                 </span>
                 <div className="font-semibold text-brand-strong mt-0.5 flex items-center gap-1.5">
@@ -404,7 +428,7 @@ export function InternDashboard({
                 </div>
               </div>
               <div className="rounded-xl border border-border bg-muted/40 p-3.5">
-                <span className="text-[11px] uppercase text-muted-foreground font-semibold">
+                <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
                   Tenure & Auto-Calculated End Date
                 </span>
                 <div className="font-semibold text-foreground mt-0.5">
@@ -469,19 +493,19 @@ export function InternDashboard({
           {/* Announcements & Quick Actions */}
           <div className="space-y-4">
             <Card className="p-5 space-y-3">
-              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-brand-strong">
+              <div className="flex items-center gap-2 eyebrow">
                 <Megaphone className="size-4" />
                 <span>Cohort Announcements</span>
               </div>
               {relevantAnnouncements.length === 0 ? (
-                <p className="text-xs text-muted-foreground">
+                <div className="rounded-xl border border-dashed border-border bg-muted/30 p-4 text-center text-xs text-muted-foreground">
                   No announcements for your cohort yet.
-                </p>
+                </div>
               ) : (
                 relevantAnnouncements.map((ann) => (
                   <div
                     key={ann.id}
-                    className="rounded-xl border border-border bg-muted/50 p-3.5 text-xs space-y-1"
+                    className="rounded-xl border border-border bg-muted/40 p-3.5 text-xs space-y-1"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <strong className="text-foreground">{ann.title}</strong>
@@ -503,7 +527,6 @@ export function InternDashboard({
                 <Button
                   type="button"
                   variant="brand"
-                  size="sm"
                   onClick={handleCheckInToday}
                   className="w-full justify-center font-semibold cursor-pointer"
                 >
@@ -513,7 +536,6 @@ export function InternDashboard({
                 <Button
                   type="button"
                   variant="outline"
-                  size="sm"
                   onClick={() => openDocument("offer_letter")}
                   className="w-full justify-center cursor-pointer"
                 >
@@ -530,8 +552,14 @@ export function InternDashboard({
       {activeTab === "tasks" && (
         <div className="space-y-4">
           {myTasks.length === 0 ? (
-            <Card className="p-8 text-center text-muted-foreground">
-              No tasks assigned yet for your cohort.
+            <Card className="p-8 sm:p-10 text-center space-y-2">
+              <Inbox className="size-7 text-muted-foreground mx-auto" />
+              <p className="text-sm font-medium text-foreground">
+                No tasks assigned yet
+              </p>
+              <p className="text-xs text-muted-foreground">
+                No tasks assigned yet for your cohort.
+              </p>
             </Card>
           ) : (
             myTasks.map((task) => (
@@ -541,19 +569,11 @@ export function InternDashboard({
               >
                 <div className="space-y-2 max-w-2xl">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Badge
-                      variant={
-                        task.status === "Approved"
-                          ? "brand"
-                          : task.status === "Needs Revision" ||
-                              task.status === "Rejected"
-                            ? "default"
-                            : "secondary"
-                      }
+                    <StatusBadge
+                      status={task.status}
+                      tone={TASK_STATUS_TONES[task.status]}
                       dot
-                    >
-                      {task.status}
-                    </Badge>
+                    />
                     <Badge variant="outline">Priority: {task.priority}</Badge>
                     <span className="text-xs text-muted-foreground flex items-center gap-1">
                       <Calendar className="size-3.5" /> Due: {task.deadline}
@@ -573,9 +593,10 @@ export function InternDashboard({
                         href={task.submissionLink}
                         target="_blank"
                         rel="noreferrer"
-                        className="underline"
+                        className="inline-flex items-center gap-1 underline hover:opacity-80"
                       >
                         {task.submissionLink}
+                        <ExternalLink className="size-3 shrink-0" />
                       </a>
                     </div>
                   )}
@@ -594,7 +615,6 @@ export function InternDashboard({
                     variant={
                       task.status === "Approved" ? "outline" : "brand"
                     }
-                    size="sm"
                     onClick={() => {
                       setSelectedTask(task);
                       setSubmissionLink(task.submissionLink || "");
@@ -616,7 +636,7 @@ export function InternDashboard({
           )}
 
           {selectedTask && (
-            <Card className="p-6 border-2 border-brand bg-card space-y-4">
+            <Card className="p-5 sm:p-6 border-2 border-brand bg-card space-y-4">
               <div className="flex items-center justify-between gap-2">
                 <h4 className="text-base font-bold text-primary">
                   Submit Work: {selectedTask.title}
@@ -627,9 +647,10 @@ export function InternDashboard({
                     setSelectedTask(null);
                     setSubmissionError(null);
                   }}
-                  className="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+                  aria-label="Cancel task submission"
+                  className="inline-flex size-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
                 >
-                  Cancel
+                  <X className="size-4" />
                 </button>
               </div>
               <form onSubmit={handleTaskSubmit} className="space-y-4">
@@ -642,8 +663,8 @@ export function InternDashboard({
                   </div>
                 )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold uppercase text-primary">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       GitHub PR / Deployment Link
                     </label>
                     <Input
@@ -652,8 +673,8 @@ export function InternDashboard({
                       onChange={(e) => setSubmissionLink(e.target.value)}
                     />
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold uppercase text-primary">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       Attachment (Optional, Max 4MB)
                     </label>
                     <Input
@@ -677,8 +698,8 @@ export function InternDashboard({
                     />
                   </div>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold uppercase text-primary">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Implementation Notes
                   </label>
                   <Textarea
@@ -707,7 +728,7 @@ export function InternDashboard({
       {/* TAB 3: ATTENDANCE & LEAVE */}
       {activeTab === "attendance" && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="p-6 space-y-4">
+          <Card className="p-5 sm:p-6 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="text-lg font-bold text-primary">
@@ -720,7 +741,6 @@ export function InternDashboard({
               <Button
                 type="button"
                 variant="brand"
-                size="sm"
                 onClick={handleCheckInToday}
                 className="cursor-pointer font-semibold"
               >
@@ -731,9 +751,12 @@ export function InternDashboard({
 
             <div className="space-y-2">
               {myAttendance.length === 0 ? (
-                <p className="text-xs text-muted-foreground rounded-lg border border-dashed border-border p-4 text-center">
-                  No attendance entries recorded yet.
-                </p>
+                <div className="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-8 text-center space-y-1.5">
+                  <Calendar className="size-6 text-muted-foreground mx-auto" />
+                  <p className="text-xs text-muted-foreground">
+                    No attendance entries recorded yet.
+                  </p>
+                </div>
               ) : (
                 myAttendance.map((a) => (
                   <div
@@ -755,25 +778,21 @@ export function InternDashboard({
                         </p>
                       )}
                     </div>
-                    <Badge
-                      variant={a.status === "Present" ? "brand" : "secondary"}
-                    >
-                      {a.status}
-                    </Badge>
+                    <StatusBadge status={a.status} dot />
                   </div>
                 ))
               )}
             </div>
           </Card>
 
-          <Card className="p-6 space-y-4">
+          <Card className="p-5 sm:p-6 space-y-4">
             <h3 className="text-lg font-bold text-primary">
               Request Leave (Requires Admin Approval)
             </h3>
-            <form onSubmit={handleLeaveSubmit} className="space-y-3">
+            <form onSubmit={handleLeaveSubmit} className="space-y-3.5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold uppercase text-primary">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Start Date
                   </label>
                   <Input
@@ -782,8 +801,8 @@ export function InternDashboard({
                     onChange={(e) => setLeaveStart(e.target.value)}
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold uppercase text-primary">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     End Date
                   </label>
                   <Input
@@ -793,8 +812,8 @@ export function InternDashboard({
                   />
                 </div>
               </div>
-              <div className="space-y-1">
-                <label className="text-xs font-semibold uppercase text-primary">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Reason for Leave
                 </label>
                 <Textarea
@@ -808,7 +827,6 @@ export function InternDashboard({
               <Button
                 type="submit"
                 variant="default"
-                size="sm"
                 className="cursor-pointer"
               >
                 Submit Leave Request
@@ -827,7 +845,7 @@ export function InternDashboard({
                 myLeaves.map((lv) => (
                   <div
                     key={lv.id}
-                    className="flex items-center justify-between gap-2 rounded-lg border border-border p-3 text-xs"
+                    className="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/20 p-3 text-xs"
                   >
                     <div>
                       <div className="font-semibold text-foreground">
@@ -835,17 +853,7 @@ export function InternDashboard({
                       </div>
                       <div className="text-muted-foreground">{lv.reason}</div>
                     </div>
-                    <Badge
-                      variant={
-                        lv.status === "Approved"
-                          ? "brand"
-                          : lv.status === "Rejected"
-                            ? "default"
-                            : "secondary"
-                      }
-                    >
-                      {lv.status}
-                    </Badge>
+                    <StatusBadge status={lv.status} dot />
                   </div>
                 ))
               )}
@@ -857,7 +865,7 @@ export function InternDashboard({
       {/* TAB 4: EVALUATION & FEEDBACK */}
       {activeTab === "evaluation" && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="p-6 space-y-4">
+          <Card className="p-5 sm:p-6 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-lg font-bold text-primary">
                 Mentor Performance Evaluation
@@ -867,7 +875,7 @@ export function InternDashboard({
                   Grade {existingEval.grade} ({existingEval.totalMarks}/100)
                 </Badge>
               ) : (
-                <Badge variant="secondary">Pending Final Evaluation</Badge>
+                <StatusBadge status="Pending Final Evaluation" tone="warning" />
               )}
             </div>
 
@@ -909,7 +917,7 @@ export function InternDashboard({
                 </div>
               </div>
             ) : (
-              <div className="rounded-xl border border-border bg-muted/40 p-6 text-center text-xs sm:text-sm text-muted-foreground">
+              <div className="rounded-xl border border-dashed border-border bg-muted/30 px-6 py-8 text-center text-xs sm:text-sm text-muted-foreground">
                 <Clock className="size-6 mx-auto text-brand-strong mb-2" />
                 {intern.mentorName || "Your assigned mentor"} will complete your
                 final performance evaluation at the end of your cohort so your
@@ -918,7 +926,7 @@ export function InternDashboard({
             )}
           </Card>
 
-          <Card className="p-6 space-y-4">
+          <Card className="p-5 sm:p-6 space-y-4">
             <h3 className="text-lg font-bold text-primary">
               Intern Experience Feedback Form
             </h3>
@@ -928,7 +936,7 @@ export function InternDashboard({
             </p>
             <form onSubmit={handleFeedbackSubmit} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase text-primary">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Overall Rating (1 to 5 Stars)
                 </label>
                 <div className="flex flex-wrap gap-2">
@@ -937,10 +945,10 @@ export function InternDashboard({
                       key={star}
                       type="button"
                       onClick={() => setFeedbackRating(star)}
-                      className={`inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-bold cursor-pointer ${
+                      className={`min-h-10 inline-flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-xs font-bold transition-colors cursor-pointer ${
                         feedbackRating >= star
                           ? "border-brand bg-brand text-brand-foreground"
-                          : "border-border bg-muted text-muted-foreground"
+                          : "border-border bg-muted text-muted-foreground hover:text-foreground"
                       }`}
                     >
                       <Star className="size-3.5 fill-current" />
@@ -950,7 +958,7 @@ export function InternDashboard({
                 </div>
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase text-primary">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Your Internship Review & Suggestions
                 </label>
                 <Textarea
@@ -984,7 +992,7 @@ export function InternDashboard({
                   ? `Issued: ${myCertificate.certificateNumber}`
                   : "Requires Completed Status & Evaluation"}
               </Badge>
-              <h3 className="mt-2 text-lg font-bold text-primary">
+              <h3 className="mt-2.5 text-lg font-bold text-primary">
                 Official Certificate of Completion (with QR Code)
               </h3>
               <p className="mt-1 text-xs text-muted-foreground">
@@ -1010,7 +1018,7 @@ export function InternDashboard({
           <Card className="p-6 flex flex-col justify-between gap-4">
             <div>
               <Badge variant="secondary">Official Onboarding Document</Badge>
-              <h3 className="mt-2 text-lg font-bold text-primary">
+              <h3 className="mt-2.5 text-lg font-bold text-primary">
                 Internship Offer Letter
               </h3>
               <p className="mt-1 text-xs text-muted-foreground">
@@ -1032,7 +1040,7 @@ export function InternDashboard({
           <Card className="p-6 flex flex-col justify-between gap-4">
             <div>
               <Badge variant="secondary">University Submission Ready</Badge>
-              <h3 className="mt-2 text-lg font-bold text-primary">
+              <h3 className="mt-2.5 text-lg font-bold text-primary">
                 Internship Completion Letter
               </h3>
               <p className="mt-1 text-xs text-muted-foreground">
@@ -1054,7 +1062,7 @@ export function InternDashboard({
           <Card className="p-6 flex flex-col justify-between gap-4">
             <div>
               <Badge variant="secondary">Career & Portfolio Credential</Badge>
-              <h3 className="mt-2 text-lg font-bold text-primary">
+              <h3 className="mt-2.5 text-lg font-bold text-primary">
                 Experience & Recommendation Letter
               </h3>
               <p className="mt-1 text-xs text-muted-foreground">

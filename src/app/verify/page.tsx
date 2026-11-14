@@ -8,7 +8,7 @@ import { PageHero } from "@/components/ui/page-hero";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/portal/status-badge";
 import { QrCodeSvg } from "@/components/portal/qr-code-svg";
 import type { CertificateRecord, InternRecord } from "@/lib/types";
 import {
@@ -181,7 +181,7 @@ function VerifyContent() {
   return (
     <div className="flex min-h-screen flex-col">
       <PortalHeader />
-      <main className="flex-1 bg-muted pb-20">
+      <main className="flex-1 bg-muted/40 dark:bg-background pb-20">
         <PageHero
           eyebrow="PUBLIC CREDENTIAL REGISTRY"
           badgeText="QR & Certificate Number Lookup"
@@ -228,10 +228,13 @@ function VerifyContent() {
           </Card>
 
           {error && (
-            <Card className="p-6 border-destructive/40 bg-destructive/10 text-destructive flex items-center gap-3">
+            <Card
+              role="alert"
+              className="p-6 border-destructive/40 bg-destructive/10 text-destructive flex items-center gap-3"
+            >
               <ShieldAlert className="size-6 shrink-0" />
               <div>
-                <h3 className="text-base font-bold">
+                <h3 className="text-base font-semibold">
                   Credential Verification Failed
                 </h3>
                 <p className="text-xs sm:text-sm mt-0.5">{error}</p>
@@ -245,8 +248,8 @@ function VerifyContent() {
               <div
                 className={`rounded-xl p-4 sm:p-5 border flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
                   result.verified
-                    ? "border-brand/50 bg-accent/60 text-foreground"
-                    : "border-destructive/50 bg-destructive/10 text-destructive"
+                    ? "border-brand/40 bg-accent/50 text-foreground"
+                    : "border-destructive/40 bg-destructive/10 text-destructive"
                 }`}
               >
                 <div className="flex items-start sm:items-center gap-3.5 min-w-0">
@@ -255,7 +258,7 @@ function VerifyContent() {
                       <ShieldCheck className="size-6" />
                     </div>
                   ) : (
-                    <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-destructive text-white">
+                    <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-destructive text-primary-foreground">
                       <ShieldAlert className="size-6" />
                     </div>
                   )}
@@ -266,12 +269,11 @@ function VerifyContent() {
                           ? "Authentic & Verified Credential"
                           : "Revoked Credential"}
                       </h2>
-                      <Badge
-                        variant={result.verified ? "brand" : "default"}
+                      <StatusBadge
+                        status={result.certificate.status}
+                        tone={result.verified ? "brand" : "danger"}
                         dot
-                      >
-                        {result.certificate.status}
-                      </Badge>
+                      />
                     </div>
                     <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 break-words">
                       Certificate No:{" "}
@@ -305,11 +307,11 @@ function VerifyContent() {
               {/* Details Grid */}
               <div className="grid grid-cols-1 md:grid-cols-[1fr_200px] gap-6 items-start">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                  <div className="rounded-xl border border-border bg-muted/40 p-4">
-                    <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+                  <div className="rounded-xl border border-border bg-muted/50 p-4">
+                    <span className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground font-medium">
                       Intern Full Name
                     </span>
-                    <div className="text-base font-bold text-primary mt-1">
+                    <div className="text-base font-semibold text-primary mt-1">
                       {result.certificate.internName}
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5">
@@ -320,11 +322,11 @@ function VerifyContent() {
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-border bg-muted/40 p-4">
-                    <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+                  <div className="rounded-xl border border-border bg-muted/50 p-4">
+                    <span className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground font-medium">
                       Internship Department
                     </span>
-                    <div className="text-base font-bold text-brand-strong mt-1">
+                    <div className="text-base font-semibold text-brand-strong mt-1">
                       {result.certificate.fieldName}
                     </div>
                     {result.certificate.batchName && (
@@ -334,11 +336,11 @@ function VerifyContent() {
                     )}
                   </div>
 
-                  <div className="rounded-xl border border-border bg-muted/40 p-4">
-                    <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+                  <div className="rounded-xl border border-border bg-muted/50 p-4">
+                    <span className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground font-medium">
                       Duration & Tenure
                     </span>
-                    <div className="text-base font-bold text-primary mt-1">
+                    <div className="text-base font-semibold text-primary mt-1">
                       {result.certificate.durationMonths} Months (100% Remote)
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5">
@@ -347,11 +349,11 @@ function VerifyContent() {
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-border bg-muted/40 p-4">
-                    <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+                  <div className="rounded-xl border border-border bg-muted/50 p-4">
+                    <span className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground font-medium">
                       Final Evaluation & Mentor
                     </span>
-                    <div className="text-base font-bold text-primary mt-1 flex items-center gap-2">
+                    <div className="text-base font-semibold text-primary mt-1 flex items-center gap-2">
                       <Award className="size-4 text-brand-strong shrink-0" />
                       <span>
                         Grade {result.certificate.grade} (
@@ -366,14 +368,14 @@ function VerifyContent() {
                   </div>
                 </div>
 
-                {/* QR Code Verification Box */}
+                {/* QR Code Verification Box (kept light for scanner quiet-zone contrast) */}
                 <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-white p-4 text-center">
                   <QrCodeSvg value={verifyUrl} size={136} />
                   <span className="mt-2 font-mono text-[11px] font-bold text-[#0b1f3a] break-all">
                     {result.certificate.certificateNumber}
                   </span>
                   <span className="text-[10px] text-[#5b6b84]">
-                    Cryptographic QR Match
+                    QR Verification Match
                   </span>
                 </div>
               </div>
@@ -390,7 +392,7 @@ function VerifyContent() {
                       {result.certificate.history.map((h, i) => (
                         <div
                           key={i}
-                          className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 rounded-lg border border-border bg-muted/30 px-3.5 py-2 text-xs"
+                          className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 rounded-lg border border-border bg-muted/30 px-3.5 py-2.5 text-xs"
                         >
                           <div className="flex flex-wrap items-center gap-2">
                             <CheckCircle2 className="size-3.5 text-brand-strong shrink-0" />

@@ -71,7 +71,7 @@ export function CertificateModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto bg-black/70 backdrop-blur-xs"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto bg-black/75 backdrop-blur-xs"
       role="dialog"
       aria-modal="true"
       aria-label="Official Internship Documents & Certificate"
@@ -81,14 +81,20 @@ export function CertificateModal({
     >
       <div className="relative w-full max-w-4xl rounded-2xl border border-border bg-card text-card-foreground shadow-2xl p-4 sm:p-7 my-auto max-h-[95vh] overflow-y-auto">
         {/* Top Toolbar (Hidden when printing) */}
-        <div className="no-print flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 mb-5 border-b border-border">
-          <div className="flex flex-wrap items-center gap-1.5">
+        <div className="no-print flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-4 mb-5 border-b border-border">
+          <div
+            className="flex items-center gap-1.5 overflow-x-auto pb-1 -mx-0.5 px-0.5"
+            role="tablist"
+            aria-label="Document type selector"
+          >
             <button
               type="button"
+              role="tab"
+              aria-selected={docType === "certificate"}
               onClick={() => setDocType("certificate")}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${
+              className={`shrink-0 whitespace-nowrap min-h-10 inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-medium transition-colors cursor-pointer ${
                 docType === "certificate"
-                  ? "bg-primary text-primary-foreground"
+                  ? "bg-brand text-brand-foreground font-semibold shadow-xs"
                   : "bg-muted text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -97,10 +103,12 @@ export function CertificateModal({
             </button>
             <button
               type="button"
+              role="tab"
+              aria-selected={docType === "offer_letter"}
               onClick={() => setDocType("offer_letter")}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${
+              className={`shrink-0 whitespace-nowrap min-h-10 inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-medium transition-colors cursor-pointer ${
                 docType === "offer_letter"
-                  ? "bg-primary text-primary-foreground"
+                  ? "bg-brand text-brand-foreground font-semibold shadow-xs"
                   : "bg-muted text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -109,10 +117,12 @@ export function CertificateModal({
             </button>
             <button
               type="button"
+              role="tab"
+              aria-selected={docType === "completion_letter"}
               onClick={() => setDocType("completion_letter")}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${
+              className={`shrink-0 whitespace-nowrap min-h-10 inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-medium transition-colors cursor-pointer ${
                 docType === "completion_letter"
-                  ? "bg-primary text-primary-foreground"
+                  ? "bg-brand text-brand-foreground font-semibold shadow-xs"
                   : "bg-muted text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -121,10 +131,12 @@ export function CertificateModal({
             </button>
             <button
               type="button"
+              role="tab"
+              aria-selected={docType === "experience_letter"}
               onClick={() => setDocType("experience_letter")}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${
+              className={`shrink-0 whitespace-nowrap min-h-10 inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-medium transition-colors cursor-pointer ${
                 docType === "experience_letter"
-                  ? "bg-primary text-primary-foreground"
+                  ? "bg-brand text-brand-foreground font-semibold shadow-xs"
                   : "bg-muted text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -133,12 +145,12 @@ export function CertificateModal({
             </button>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2 shrink-0">
             {certificate && (
               <Link
                 href={`/verify?cert=${encodeURIComponent(certNumber)}`}
                 target="_blank"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
+                className="min-h-10 inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3.5 py-2 text-xs font-medium text-foreground hover:bg-muted transition-colors"
               >
                 <ExternalLink className="size-3.5" />
                 Verify Page
@@ -147,17 +159,16 @@ export function CertificateModal({
             <Button
               type="button"
               variant="brand"
-              size="sm"
               onClick={handlePrintPdf}
               className="cursor-pointer font-semibold"
             >
-              <Printer className="size-3.5" />
+              <Printer className="size-4" />
               Download / Print PDF
             </Button>
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
+              className="inline-flex size-10 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
               aria-label="Close modal"
             >
               <X className="size-5" />

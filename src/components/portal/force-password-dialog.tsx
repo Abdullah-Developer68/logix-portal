@@ -65,19 +65,20 @@ export function ForcePasswordDialog({
       aria-modal="true"
       aria-labelledby="force-pw-title"
     >
-      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 sm:p-7 shadow-2xl space-y-5 my-auto">
+      <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 sm:p-7 shadow-2xl space-y-5 my-auto">
         <div className="flex items-start gap-3">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand/20 text-brand-strong">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent text-brand-strong border border-brand/30">
             <ShieldAlert className="size-5" />
           </div>
           <div>
+            <span className="eyebrow">SECURITY CHECK</span>
             <h2
               id="force-pw-title"
-              className="text-lg sm:text-xl font-bold text-primary"
+              className="text-lg sm:text-xl font-bold text-primary mt-0.5"
             >
               Set a New Password
             </h2>
-            <p className="text-xs text-muted-foreground mt-1 break-words">
+            <p className="text-xs text-muted-foreground mt-1 break-words leading-5">
               Your account (<strong className="text-foreground">{userEmail}</strong>)
               uses a temporary password. You must set a new password before
               continuing.
@@ -98,7 +99,7 @@ export function ForcePasswordDialog({
           <div className="space-y-1.5">
             <label
               htmlFor="force-current-pw"
-              className="text-xs font-semibold uppercase tracking-wider text-primary"
+              className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
             >
               Current / Temporary Password
             </label>
@@ -117,7 +118,7 @@ export function ForcePasswordDialog({
           <div className="space-y-1.5">
             <label
               htmlFor="force-new-pw"
-              className="text-xs font-semibold uppercase tracking-wider text-primary"
+              className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
             >
               New Password (8–128 characters)
             </label>
@@ -137,7 +138,7 @@ export function ForcePasswordDialog({
           <div className="space-y-1.5">
             <label
               htmlFor="force-confirm-pw"
-              className="text-xs font-semibold uppercase tracking-wider text-primary"
+              className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
             >
               Confirm New Password
             </label>
@@ -154,7 +155,7 @@ export function ForcePasswordDialog({
             />
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-2 pt-2">
+          <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
             <Button
               type="submit"
               variant="brand"

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { CredentialNotice } from "@/components/portal/credential-notice";
 import type {
@@ -221,7 +222,7 @@ function ConvertApplicationDialogInner({
         if (e.target === e.currentTarget && !submitting) onClose();
       }}
     >
-      <div className="w-full max-w-xl rounded-2xl border border-border bg-card p-5 sm:p-7 shadow-2xl my-auto max-h-[92vh] overflow-y-auto space-y-5">
+      <div className="w-full max-w-xl rounded-xl border border-border bg-card p-5 sm:p-7 shadow-2xl my-auto max-h-[92vh] overflow-y-auto space-y-5">
         <div className="flex items-start justify-between gap-3 pb-3 border-b border-border">
           <div className="min-w-0">
             <span className="eyebrow">WEBSITE APPLICATION CONVERSION</span>
@@ -243,7 +244,7 @@ function ConvertApplicationDialogInner({
             disabled={submitting}
             onClick={onClose}
             aria-label="Close convert dialog"
-            className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer disabled:opacity-50"
+            className="inline-flex size-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer disabled:opacity-50 shrink-0"
           >
             <X className="size-5" />
           </button>
@@ -254,7 +255,7 @@ function ConvertApplicationDialogInner({
             <div className="rounded-xl border border-brand/40 bg-accent/50 p-4 flex items-start gap-3">
               <CheckCircle2 className="size-5 text-brand-strong shrink-0 mt-0.5" />
               <div className="space-y-1 text-xs sm:text-sm min-w-0">
-                <div className="font-bold text-primary">
+                <div className="font-semibold text-primary">
                   {convertedResult.intern.fullName} is now registered as an intern!
                 </div>
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -315,19 +316,18 @@ function ConvertApplicationDialogInner({
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <label
                   htmlFor="conv-field"
-                  className="text-xs font-semibold uppercase tracking-wider text-primary"
+                  className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
                 >
                   Department / Field *
                 </label>
-                <select
+                <Select
                   id="conv-field"
                   required
                   value={fieldId}
                   onChange={(e) => setFieldId(e.target.value)}
-                  className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
                 >
                   {activeFields.length === 0 && (
                     <option value="">No departments available</option>
@@ -337,22 +337,21 @@ function ConvertApplicationDialogInner({
                       {f.name} ({f.podName})
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <label
                   htmlFor="conv-duration"
-                  className="text-xs font-semibold uppercase tracking-wider text-primary"
+                  className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
                 >
                   Duration *
                 </label>
-                <select
+                <Select
                   id="conv-duration"
                   required
                   value={durationMonths}
                   onChange={(e) => setDurationMonths(Number(e.target.value))}
-                  className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
                 >
                   {activeDurations.length > 0 ? (
                     activeDurations.map((d) => (
@@ -368,13 +367,13 @@ function ConvertApplicationDialogInner({
                       <option value={6}>6 Months</option>
                     </>
                   )}
-                </select>
+                </Select>
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <label
                   htmlFor="conv-start"
-                  className="text-xs font-semibold uppercase tracking-wider text-primary"
+                  className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
                 >
                   Start Date *
                 </label>
@@ -392,18 +391,17 @@ function ConvertApplicationDialogInner({
                 )}
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <label
                   htmlFor="conv-batch"
-                  className="text-xs font-semibold uppercase tracking-wider text-primary"
+                  className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
                 >
                   Cohort Batch (Optional)
                 </label>
-                <select
+                <Select
                   id="conv-batch"
                   value={batchId}
                   onChange={(e) => setBatchId(e.target.value)}
-                  className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
                 >
                   <option value="">None / Unassigned</option>
                   {batches.map((b) => (
@@ -411,21 +409,20 @@ function ConvertApplicationDialogInner({
                       {b.name} ({b.status})
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
 
-              <div className="space-y-1 sm:col-span-2">
+              <div className="space-y-1.5 sm:col-span-2">
                 <label
                   htmlFor="conv-mentor"
-                  className="text-xs font-semibold uppercase tracking-wider text-primary"
+                  className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
                 >
                   Assigned Mentor (Optional)
                 </label>
-                <select
+                <Select
                   id="conv-mentor"
                   value={mentorId}
                   onChange={(e) => setMentorId(e.target.value)}
-                  className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
                 >
                   <option value="">None / Unassigned</option>
                   {mentors.map((m) => (
@@ -433,7 +430,7 @@ function ConvertApplicationDialogInner({
                       {m.name} ({m.department})
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
             </div>
 

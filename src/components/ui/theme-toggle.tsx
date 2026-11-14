@@ -51,6 +51,9 @@ export function ThemeToggle({ className }: { className?: string }) {
       document.documentElement.classList.remove("dark");
       localStorage.setItem("theme", "light");
     }
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute("content", nextDark ? "#080e1a" : "#ffffff");
   };
 
   if (!mounted) {

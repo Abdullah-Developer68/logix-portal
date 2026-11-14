@@ -1,5 +1,3 @@
-"use client";
-
 import type { ReactNode } from "react";
 import { FadeIn } from "@/components/ui/motion";
 import { cn } from "@/lib/utils";
@@ -25,6 +23,7 @@ export function SectionHeader({
     <FadeIn
       distance={20}
       duration={0.5}
+      rootMargin="-50px"
       className={cn(
         "flex flex-col gap-4 mb-12",
         align === "center" && "text-center items-center mx-auto max-w-2xl",

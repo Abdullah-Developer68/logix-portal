@@ -1,27 +1,16 @@
 "use client";
 
-import {
-  useEffect,
-  useRef,
-  type ComponentProps,
-  type CSSProperties,
-  type ReactNode,
-} from "react";
+import { useEffect, useRef, type CSSProperties, type HTMLAttributes, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-function useRevealElement(rootMargin = "0px 0px -40px 0px") {
+function useInViewOnce(rootMargin = "-40px") {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const el = ref.current;
-    if (!el) return;
-
-    const prefersReduced =
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-    if (prefersReduced || typeof IntersectionObserver === "undefined") {
-      el.setAttribute("data-visible", "true");
+    if (!el || el.dataset.visible === "true") return;
+    if (typeof IntersectionObserver === "undefined") {
+      el.dataset.visible = "true";
       return;
     }
 
@@ -29,12 +18,13 @@ function useRevealElement(rootMargin = "0px 0px -40px 0px") {
       (entries) => {
         for (const entry of entries) {
           if (entry.isIntersecting) {
-            entry.target.setAttribute("data-visible", "true");
-            observer.unobserve(entry.target);
+            el.dataset.visible = "true";
+            observer.disconnect();
+            break;
           }
         }
       },
-      { rootMargin, threshold: 0.01 },
+      { rootMargin, threshold: 0 },
     );
 
     observer.observe(el);
@@ -51,6 +41,7 @@ export function FadeIn({
   duration = 0.5,
   direction = "up",
   distance = 24,
+  rootMargin = "-40px",
   style,
   ...props
 }: {
@@ -60,31 +51,33 @@ export function FadeIn({
   duration?: number;
   direction?: "up" | "down" | "left" | "right" | "none";
   distance?: number;
-} & ComponentProps<"div">) {
-  const ref = useRevealElement();
+  rootMargin?: string;
+} & HTMLAttributes<HTMLDivElement>) {
+  const ref = useInViewOnce(rootMargin);
 
   const offsets = {
-    up: { x: "0px", y: `${distance}px` },
-    down: { x: "0px", y: `${-distance}px` },
-    left: { x: `${distance}px`, y: "0px" },
-    right: { x: `${-distance}px`, y: "0px" },
-    none: { x: "0px", y: "0px" },
+    up: { x: 0, y: distance },
+    down: { x: 0, y: -distance },
+    left: { x: distance, y: 0 },
+    right: { x: -distance, y: 0 },
+    none: { x: 0, y: 0 },
   };
-
   const offset = offsets[direction];
-  const revealStyle = {
-    "--reveal-x": offset.x,
-    "--reveal-y": offset.y,
-    "--reveal-duration": `${Math.round(duration * 1000)}ms`,
-    "--reveal-delay": `${Math.round(delay * 1000)}ms`,
-    ...style,
-  } as CSSProperties;
 
   return (
     <div
       ref={ref}
-      className={cn("reveal-fade", className)}
-      style={revealStyle}
+      data-visible="false"
+      className={cn("reveal-item", className)}
+      style={
+        {
+          "--reveal-x": `${offset.x}px`,
+          "--reveal-y": `${offset.y}px`,
+          "--reveal-duration": `${duration}s`,
+          "--reveal-delay": `${delay}s`,
+          ...style,
+        } as CSSProperties
+      }
       {...props}
     >
       {children}
@@ -104,21 +97,23 @@ export function StaggerContainer({
   className?: string;
   staggerDelay?: number;
   delayChildren?: number;
-} & ComponentProps<"div">) {
-  const ref = useRevealElement();
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const items = el.querySelectorAll<HTMLElement>("[data-stagger-item]");
-    items.forEach((item, index) => {
-      const delayMs = Math.round((delayChildren + index * staggerDelay) * 1000);
-      item.style.setProperty("--reveal-delay", `${delayMs}ms`);
-    });
-  }, [ref, staggerDelay, delayChildren]);
+} & HTMLAttributes<HTMLDivElement>) {
+  const ref = useInViewOnce("-40px");
 
   return (
-    <div ref={ref} className={className} style={style} {...props}>
+    <div
+      ref={ref}
+      data-visible="false"
+      className={cn("stagger-container", className)}
+      style={
+        {
+          "--stagger-base": `${delayChildren}s`,
+          "--stagger-step": `${staggerDelay}s`,
+          ...style,
+        } as CSSProperties
+      }
+      {...props}
+    >
       {children}
     </div>
   );
@@ -134,22 +129,11 @@ export function StaggerItem({
   children: ReactNode;
   className?: string;
   distance?: number;
-} & ComponentProps<"div">) {
-  const ref = useRevealElement();
-
-  const revealStyle = {
-    "--reveal-x": "0px",
-    "--reveal-y": `${distance}px`,
-    "--reveal-duration": "500ms",
-    ...style,
-  } as CSSProperties;
-
+} & HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      ref={ref}
-      data-stagger-item=""
-      className={cn("reveal-fade", className)}
-      style={revealStyle}
+      className={cn("stagger-item", className)}
+      style={{ "--stagger-y": `${distance}px`, ...style } as CSSProperties}
       {...props}
     >
       {children}
@@ -164,5 +148,9 @@ export function MotionCardWrapper({
   children: ReactNode;
   className?: string;
 }) {
-  return <div className={cn("h-full reveal-card", className)}>{children}</div>;
+  return (
+    <div className={cn("h-full transition-transform duration-200 ease-out hover:-translate-y-1", className)}>
+      {children}
+    </div>
+  );
 }

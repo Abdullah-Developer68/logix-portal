@@ -12,22 +12,21 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
   display: "swap",
+  preload: false,
 });
 
 export const metadata: Metadata = {
-  title: "Logix Internship Management Portal — Full Lifecycle Platform",
+  title: "Logix Internship Portal",
   description:
-    "Official Logix Internship Management Portal: manage applications, cohorts, mentorship tasks, attendance, performance evaluations, and QR-verified certificates.",
+    "Manage Logix internship cohorts, mentorship tasks, attendance, evaluations, and verified certificates.",
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#080e1a" },
-  ],
+  // Dark is the default theme; it intentionally does not follow the OS setting.
+  themeColor: "#080e1a",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -35,19 +34,26 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-full scroll-smooth antialiased`}
+      className={`dark ${geistSans.variable} ${geistMono.variable} h-full scroll-smooth antialiased`}
     >
       <head>
+        {/*
+          Always open in dark mode, regardless of the OS light/dark preference.
+          Light mode is only used when the visitor explicitly picks it with the
+          header theme toggle (persisted as theme=light in localStorage).
+        */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
               try {
-                const stored = localStorage.getItem('theme');
-                if (stored === 'dark' || (!stored && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                  document.documentElement.classList.add('dark');
+                var root = document.documentElement;
+                if (localStorage.getItem('theme') === 'light') {
+                  root.classList.remove('dark');
                 } else {
-                  document.documentElement.classList.remove('dark');
+                  root.classList.add('dark');
                 }
+                var meta = document.querySelector('meta[name="theme-color"]');
+                if (meta) meta.setAttribute('content', root.classList.contains('dark') ? '#080e1a' : '#ffffff');
               } catch (e) {}
             `,
           }}

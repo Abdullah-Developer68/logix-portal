@@ -6,7 +6,9 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { StatusBadge, type StatusTone } from "@/components/portal/status-badge";
 import type {
   WebsiteApplication,
   WebsiteApplicationStatus,
@@ -52,17 +54,13 @@ const STATUS_OPTIONS: Array<{
   { value: "hired", label: "Hired" },
 ];
 
-const STATUS_BADGE_CLASSES: Record<WebsiteApplicationStatus, string> = {
-  new: "bg-brand/20 text-brand-strong border border-brand/40",
-  contacted: "bg-sky-500/15 text-sky-700 dark:text-sky-300 border border-sky-500/30",
-  reviewing:
-    "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30",
-  shortlisted:
-    "bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/30",
-  rejected:
-    "bg-destructive/15 text-destructive border border-destructive/30",
-  hired:
-    "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30",
+const WEBSITE_STATUS_TONES: Record<WebsiteApplicationStatus, StatusTone> = {
+  new: "brand",
+  contacted: "info",
+  reviewing: "warning",
+  shortlisted: "info",
+  rejected: "danger",
+  hired: "brand",
 };
 
 function formatFileSize(bytes: number | null): string {
@@ -222,11 +220,11 @@ export function WebsiteApplicationsTab({
   return (
     <div className="space-y-5">
       {/* Header + Summary Status Filter Chips + Search */}
-      <Card className="p-4 sm:p-5 space-y-4">
+      <Card className="p-4 sm:p-6 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <span className="eyebrow">LOGIXOFFICIAL.SITE INTAKE</span>
-            <h3 className="text-base sm:text-lg font-bold text-primary">
+            <h3 className="text-base sm:text-lg font-semibold text-primary mt-0.5">
               Website Internship Applications ({applications.length})
             </h3>
           </div>
@@ -247,9 +245,9 @@ export function WebsiteApplicationsTab({
             type="button"
             onClick={() => setStatusFilter("ALL")}
             aria-pressed={statusFilter === "ALL"}
-            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${
+            className={`min-h-9 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
               statusFilter === "ALL"
-                ? "bg-primary text-primary-foreground"
+                ? "bg-brand text-brand-foreground font-semibold"
                 : "border border-border bg-muted/40 text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -269,9 +267,9 @@ export function WebsiteApplicationsTab({
                   )
                 }
                 aria-pressed={active}
-                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${
+                className={`min-h-9 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
                   active
-                    ? "bg-primary text-primary-foreground"
+                    ? "bg-brand text-brand-foreground font-semibold"
                     : "border border-border bg-muted/40 text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -299,9 +297,9 @@ export function WebsiteApplicationsTab({
 
       {/* Empty States */}
       {applications.length === 0 ? (
-        <Card className="p-8 sm:p-12 text-center space-y-2">
+        <Card className="p-8 sm:p-12 text-center space-y-2.5">
           <Inbox className="size-8 mx-auto text-brand-strong opacity-80" />
-          <h4 className="text-base font-bold text-primary">
+          <h4 className="text-base font-semibold text-primary">
             No Website Applications Yet
           </h4>
           <p className="text-xs sm:text-sm text-muted-foreground max-w-md mx-auto">
@@ -323,7 +321,7 @@ export function WebsiteApplicationsTab({
               setStatusFilter("ALL");
               setSearchQuery("");
             }}
-            className="cursor-pointer"
+            className="h-9 px-3 cursor-pointer"
           >
             Clear Filters
           </Button>
@@ -347,19 +345,18 @@ export function WebsiteApplicationsTab({
             const isNoteExpanded = Boolean(expandedNotes[app.id]);
 
             return (
-              <Card key={app.id} className="p-4 sm:p-6 space-y-4">
+              <Card key={app.id} className="p-5 sm:p-6 space-y-4">
                 {/* Top Row: Candidate Info + Status & Quick Actions */}
                 <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
                   <div className="space-y-2 min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h4 className="text-base sm:text-lg font-bold text-primary break-words">
+                      <h4 className="text-base sm:text-lg font-semibold text-primary break-words">
                         {app.fullName}
                       </h4>
-                      <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${STATUS_BADGE_CLASSES[app.status]}`}
-                      >
-                        {app.status}
-                      </span>
+                      <StatusBadge
+                        status={app.status}
+                        tone={WEBSITE_STATUS_TONES[app.status]}
+                      />
                       <Badge variant="outline">{app.role}</Badge>
                     </div>
 
@@ -374,7 +371,7 @@ export function WebsiteApplicationsTab({
                         href={`mailto:${app.email}?subject=${encodeURIComponent(
                           "Your Logix internship application",
                         )}`}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted break-all"
+                        className="min-h-9 inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted break-all"
                       >
                         <Mail className="size-3.5 text-brand-strong shrink-0" />
                         <span className="break-all">{app.email}</span>
@@ -383,7 +380,7 @@ export function WebsiteApplicationsTab({
                       {app.phone && (
                         <a
                           href={`tel:${app.phone.replace(/[^\d+]/g, "")}`}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
+                          className="min-h-9 inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
                         >
                           <Phone className="size-3.5 text-brand-strong shrink-0" />
                           <span>{app.phone}</span>
@@ -395,7 +392,7 @@ export function WebsiteApplicationsTab({
                           href={`https://wa.me/${phoneDigits}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20"
+                          className="min-h-9 inline-flex items-center gap-1.5 rounded-lg border border-brand/30 bg-accent/60 px-3 py-1.5 text-xs font-semibold text-brand-strong hover:bg-accent"
                         >
                           <MessageCircle className="size-3.5 shrink-0" />
                           <span>WhatsApp</span>
@@ -406,7 +403,7 @@ export function WebsiteApplicationsTab({
                         <a
                           href={`/api/website-applications/${encodeURIComponent(app.id)}/resume`}
                           download={app.resumeFileName || undefined}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-brand/40 bg-accent/60 px-2.5 py-1.5 text-xs font-semibold text-brand-strong hover:bg-accent"
+                          className="min-h-9 inline-flex items-center gap-1.5 rounded-lg border border-brand/40 bg-accent/60 px-3 py-1.5 text-xs font-semibold text-brand-strong hover:bg-accent"
                         >
                           <Download className="size-3.5 shrink-0" />
                           <span className="truncate max-w-[180px] sm:max-w-[260px]">
@@ -427,7 +424,7 @@ export function WebsiteApplicationsTab({
                     <label className="sr-only" htmlFor={`status-${app.id}`}>
                       Application status for {app.fullName}
                     </label>
-                    <select
+                    <Select
                       id={`status-${app.id}`}
                       disabled={isInFlight}
                       value={app.status}
@@ -438,25 +435,25 @@ export function WebsiteApplicationsTab({
                         )
                       }
                       aria-label={`Change status for ${app.fullName}`}
-                      className="h-9 rounded-lg border border-input bg-background px-2.5 text-xs font-semibold disabled:opacity-50"
+                      className="w-auto min-w-[155px] text-xs font-medium"
                     >
                       {STATUS_OPTIONS.map((opt) => (
                         <option key={opt.value} value={opt.value}>
                           Status: {opt.label}
                         </option>
                       ))}
-                    </select>
+                    </Select>
 
                     {app.status === "new" && (
                       <Button
                         type="button"
                         variant="outline"
-                        size="sm"
+                        size="default"
                         disabled={isInFlight}
                         onClick={() =>
                           void handleStatusChange(app.id, "contacted")
                         }
-                        className="cursor-pointer"
+                        className="text-xs cursor-pointer"
                       >
                         <CheckCircle2 className="size-3.5 text-brand-strong" />
                         Mark Contacted
@@ -464,7 +461,7 @@ export function WebsiteApplicationsTab({
                     )}
 
                     {app.status === "hired" || app.internRecordId ? (
-                      <div className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                      <div className="h-10 inline-flex items-center gap-2 rounded-lg border border-brand/30 bg-accent/60 px-3 text-xs font-semibold text-brand-strong">
                         <span>
                           Intern:{" "}
                           <span className="font-mono">
@@ -488,10 +485,10 @@ export function WebsiteApplicationsTab({
                       <Button
                         type="button"
                         variant="brand"
-                        size="sm"
+                        size="default"
                         disabled={isInFlight}
                         onClick={() => setConvertingApp(app)}
-                        className="font-semibold cursor-pointer"
+                        className="text-xs font-semibold cursor-pointer"
                       >
                         <UserPlus className="size-3.5" />
                         Convert to Intern
@@ -502,8 +499,8 @@ export function WebsiteApplicationsTab({
 
                 {/* Candidate Note (Expandable) */}
                 {noteText && (
-                  <div className="rounded-xl border border-border bg-muted/30 p-3 text-xs space-y-1.5">
-                    <div className="font-semibold uppercase tracking-wider text-[11px] text-muted-foreground">
+                  <div className="rounded-xl border border-border bg-muted/30 p-3.5 text-xs space-y-1.5">
+                    <div className="font-medium uppercase tracking-wider text-[11px] text-muted-foreground">
                       Applicant Note
                     </div>
                     <p
@@ -523,7 +520,7 @@ export function WebsiteApplicationsTab({
                           }))
                         }
                         aria-expanded={isNoteExpanded}
-                        className="inline-flex items-center gap-1 text-xs font-semibold text-brand-strong hover:underline cursor-pointer"
+                        className="min-h-8 inline-flex items-center gap-1 text-xs font-semibold text-brand-strong hover:underline cursor-pointer"
                       >
                         {isNoteExpanded ? (
                           <>
@@ -541,10 +538,10 @@ export function WebsiteApplicationsTab({
 
                 {/* Admin Notes + Reviewer Metadata */}
                 <div className="pt-3 border-t border-border grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-3 items-end">
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     <label
                       htmlFor={`notes-${app.id}`}
-                      className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground block"
+                      className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground block"
                     >
                       Admin Notes
                     </label>
@@ -569,10 +566,10 @@ export function WebsiteApplicationsTab({
                     <Button
                       type="button"
                       variant={notesDirty ? "brand" : "outline"}
-                      size="sm"
+                      size="default"
                       disabled={isInFlight || !notesDirty}
                       onClick={() => void handleSaveNotes(app)}
-                      className="cursor-pointer font-semibold"
+                      className="text-xs cursor-pointer font-semibold"
                     >
                       <Save className="size-3.5" />
                       {isInFlight ? "Saving..." : "Save Notes"}

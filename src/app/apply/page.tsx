@@ -6,9 +6,10 @@ import { PortalHeader, PortalFooter } from "@/components/layout/portal-header";
 import { PageHero } from "@/components/ui/page-hero";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Button, ButtonLink } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/portal/status-badge";
 import type {
   FieldDepartment,
   DurationOption,
@@ -16,6 +17,7 @@ import type {
   InternRecord,
 } from "@/lib/types";
 import {
+  ArrowUpRight,
   CheckCircle2,
   Upload,
   FileText,
@@ -243,10 +245,10 @@ export default function ApplyPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <PortalHeader />
-      <main className="flex-1 bg-muted pb-20">
+      <main className="flex-1 bg-muted/40 dark:bg-background pb-20">
         <PageHero
           eyebrow="INTERN REGISTRATION & APPLICATION"
-          badgeText="Winter & Autumn 2026 Cohorts Open"
+          badgeText="2026 Cohorts"
           title={
             <>
               Apply for the{" "}
@@ -256,59 +258,75 @@ export default function ApplyPage() {
               Internship Program.
             </>
           }
-          description="Complete your official application below. Upon submission, you will receive an instant Intern Tracking ID, email confirmation, and access to your student dashboard."
+          description="Complete your application below. You will receive an Intern Tracking ID right away, and the Logix team will contact you after reviewing your application."
         />
 
-        <div className="container-x max-w-4xl mt-10">
+        <div className="container-x max-w-4xl mt-8 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 text-xs sm:text-sm">
+            <span className="text-muted-foreground">
+              Want to review open tracks, schedules, and program details first?
+            </span>
+            <a
+              href="https://logixofficial.site/internships"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 font-medium text-brand-strong hover:underline shrink-0"
+            >
+              <span>Explore open tracks on logixofficial.site</span>
+              <ArrowUpRight className="size-3.5" aria-hidden="true" />
+            </a>
+          </div>
+
           {submittedIntern ? (
-            <Card className="p-8 sm:p-10 text-center bg-card border-border shadow-xl">
-              <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-brand/20 text-brand-strong border border-brand/30">
+            <Card className="p-6 sm:p-10 text-center bg-card border-border shadow-lg">
+              <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-accent text-brand-strong border border-brand/30">
                 <CheckCircle2 className="size-8" />
               </div>
-              <Badge variant="brand" className="mt-4">
-                Application Status: {submittedIntern.applicationStatus}
-              </Badge>
+              <div className="mt-4">
+                <StatusBadge status={submittedIntern.applicationStatus} dot>
+                  Application Status: {submittedIntern.applicationStatus}
+                </StatusBadge>
+              </div>
               <h2 className="mt-3 text-2xl sm:text-3xl font-bold text-primary">
                 Application Received, {submittedIntern.fullName}!
               </h2>
               <p className="mt-2 text-sm text-muted-foreground max-w-lg mx-auto">
-                An email confirmation has been dispatched to{" "}
+                The Logix team will review your application and contact you at{" "}
                 <strong className="text-foreground">
                   {submittedIntern.email}
                 </strong>
-                . You will receive email notifications whenever your status is
-                updated.
+                . Keep your Intern Tracking ID for reference.
               </p>
 
-              <div className="mt-6 max-w-md mx-auto rounded-xl border border-border bg-muted p-4 text-left text-xs space-y-2">
-                <div className="flex justify-between">
+              <div className="mt-6 max-w-md mx-auto rounded-xl border border-border bg-muted/60 p-4 text-left text-xs space-y-2">
+                <div className="flex justify-between gap-2">
                   <span className="text-muted-foreground">Unique Intern ID:</span>
                   <span className="font-mono font-bold text-brand-strong">
                     {submittedIntern.internId}
                   </span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between gap-2">
                   <span className="text-muted-foreground">Department:</span>
                   <span className="font-semibold text-foreground">
                     {submittedIntern.fieldName}
                   </span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between gap-2">
                   <span className="text-muted-foreground">Duration & Dates:</span>
                   <span className="font-semibold text-foreground">
                     {submittedIntern.durationMonths} Months (
                     {submittedIntern.startDate} → {submittedIntern.endDate})
                   </span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between gap-2">
                   <span className="text-muted-foreground">Assigned Mentor:</span>
                   <span className="font-semibold text-foreground">
                     {submittedIntern.mentorName}
                   </span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between gap-2">
                   <span className="text-muted-foreground">CV Attached:</span>
-                  <span className="font-semibold text-foreground">
+                  <span className="font-semibold text-foreground truncate max-w-[200px]">
                     {submittedIntern.cvFileName}
                   </span>
                 </div>
@@ -337,7 +355,10 @@ export default function ApplyPage() {
           ) : (
             <Card className="p-6 sm:p-9 bg-card border-border shadow-lg">
               {error && (
-                <div className="mb-6 rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
+                <div
+                  role="alert"
+                  className="mb-6 rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive"
+                >
                   {error}
                 </div>
               )}
@@ -347,14 +368,14 @@ export default function ApplyPage() {
                 <div>
                   <div className="flex items-center gap-2 pb-3 mb-4 border-b border-border">
                     <User className="size-4 text-brand-strong" />
-                    <h3 className="text-base font-bold text-primary">
+                    <h3 className="text-base font-semibold text-primary">
                       1. Personal Information
                     </h3>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold uppercase tracking-wider text-primary">
+                      <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                         Full Name <span className="text-brand-strong">*</span>
                       </label>
                       <Input
@@ -365,7 +386,7 @@ export default function ApplyPage() {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold uppercase tracking-wider text-primary">
+                      <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                         Father&apos;s Name{" "}
                         <span className="text-brand-strong">*</span>
                       </label>
@@ -377,7 +398,7 @@ export default function ApplyPage() {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold uppercase tracking-wider text-primary">
+                      <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                         CNIC / Student ID{" "}
                         <span className="text-brand-strong">*</span>
                       </label>
@@ -389,7 +410,7 @@ export default function ApplyPage() {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold uppercase tracking-wider text-primary">
+                      <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                         Email Address{" "}
                         <span className="text-brand-strong">*</span>
                       </label>
@@ -402,7 +423,7 @@ export default function ApplyPage() {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold uppercase tracking-wider text-primary">
+                      <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                         Phone Number{" "}
                         <span className="text-brand-strong">*</span>
                       </label>
@@ -415,7 +436,7 @@ export default function ApplyPage() {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold uppercase tracking-wider text-primary">
+                      <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                         City <span className="text-brand-strong">*</span>
                       </label>
                       <Input
@@ -429,7 +450,7 @@ export default function ApplyPage() {
 
                   {/* Photo Upload */}
                   <div className="mt-4">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-primary block mb-1.5">
+                    <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground block mb-1.5">
                       Profile Photo (Optional · Max 4MB)
                     </label>
                     <input
@@ -452,7 +473,7 @@ export default function ApplyPage() {
                     <button
                       type="button"
                       onClick={() => photoInputRef.current?.click()}
-                      className="inline-flex items-center gap-2 rounded-lg border border-border bg-muted/60 px-3.5 py-2 text-xs font-medium text-foreground hover:bg-muted cursor-pointer"
+                      className="min-h-10 inline-flex items-center gap-2 rounded-lg border border-input bg-background px-3.5 py-2 text-xs font-medium text-foreground hover:bg-muted cursor-pointer transition-colors"
                     >
                       <Camera className="size-4 text-brand-strong shrink-0" />
                       <span className="truncate max-w-[240px] sm:max-w-none">
@@ -468,14 +489,14 @@ export default function ApplyPage() {
                 <div>
                   <div className="flex items-center gap-2 pb-3 mb-4 border-b border-border">
                     <GraduationCap className="size-4 text-brand-strong" />
-                    <h3 className="text-base font-bold text-primary">
+                    <h3 className="text-base font-semibold text-primary">
                       2. Education Details
                     </h3>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold uppercase tracking-wider text-primary">
+                      <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                         University / Institution{" "}
                         <span className="text-brand-strong">*</span>
                       </label>
@@ -487,7 +508,7 @@ export default function ApplyPage() {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold uppercase tracking-wider text-primary">
+                      <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                         Degree Program{" "}
                         <span className="text-brand-strong">*</span>
                       </label>
@@ -499,7 +520,7 @@ export default function ApplyPage() {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold uppercase tracking-wider text-primary">
+                      <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                         Current Semester{" "}
                         <span className="text-brand-strong">*</span>
                       </label>
@@ -511,7 +532,7 @@ export default function ApplyPage() {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold uppercase tracking-wider text-primary">
+                      <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                         Current CGPA{" "}
                         <span className="text-brand-strong">*</span>
                       </label>
@@ -529,21 +550,20 @@ export default function ApplyPage() {
                 <div>
                   <div className="flex items-center gap-2 pb-3 mb-4 border-b border-border">
                     <Briefcase className="size-4 text-brand-strong" />
-                    <h3 className="text-base font-bold text-primary">
+                    <h3 className="text-base font-semibold text-primary">
                       3. Internship Field, Duration & Schedule
                     </h3>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold uppercase tracking-wider text-primary">
+                      <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                         Internship Field / Department{" "}
                         <span className="text-brand-strong">*</span>
                       </label>
-                      <select
+                      <Select
                         value={fieldId}
                         onChange={(e) => setFieldId(e.target.value)}
-                        className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground focus-visible:border-ring focus-visible:outline-none"
                       >
                         {fields.length === 0 && (
                           <option value="">Loading departments...</option>
@@ -553,17 +573,16 @@ export default function ApplyPage() {
                             {f.name} ({f.totalSeats - f.filledSeats} seats open)
                           </option>
                         ))}
-                      </select>
+                      </Select>
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold uppercase tracking-wider text-primary">
+                      <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                         Cohort Batch
                       </label>
-                      <select
+                      <Select
                         value={batchId}
                         onChange={(e) => setBatchId(e.target.value)}
-                        className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground focus-visible:border-ring focus-visible:outline-none"
                       >
                         {batches.length === 0 && (
                           <option value="">No active batches</option>
@@ -573,11 +592,11 @@ export default function ApplyPage() {
                             {b.name} ({b.status})
                           </option>
                         ))}
-                      </select>
+                      </Select>
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold uppercase tracking-wider text-primary">
+                      <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                         Preferred Duration{" "}
                         <span className="text-brand-strong">*</span>
                       </label>
@@ -593,7 +612,7 @@ export default function ApplyPage() {
                             className={`h-10 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
                               durationMonths === m
                                 ? "border-brand bg-brand text-brand-foreground shadow-xs"
-                                : "border-border bg-background text-muted-foreground hover:text-foreground"
+                                : "border-input bg-background text-muted-foreground hover:text-foreground"
                             }`}
                           >
                             {m} {m === 1 ? "Month" : "Months"}
@@ -603,7 +622,7 @@ export default function ApplyPage() {
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold uppercase tracking-wider text-primary">
+                      <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                         Preferred Start Date{" "}
                         <span className="text-brand-strong">*</span>
                       </label>
@@ -626,14 +645,14 @@ export default function ApplyPage() {
                 <div>
                   <div className="flex items-center gap-2 pb-3 mb-4 border-b border-border">
                     <Code2 className="size-4 text-brand-strong" />
-                    <h3 className="text-base font-bold text-primary">
+                    <h3 className="text-base font-semibold text-primary">
                       4. Technical Skills, Portfolio Links & CV Upload
                     </h3>
                   </div>
 
                   <div className="space-y-4">
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold uppercase tracking-wider text-primary">
+                      <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                         Technical Skills (Comma separated)
                       </label>
                       <Input
@@ -645,7 +664,7 @@ export default function ApplyPage() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div className="space-y-1.5">
-                        <label className="text-xs font-semibold uppercase tracking-wider text-primary">
+                        <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                           GitHub URL
                         </label>
                         <Input
@@ -656,7 +675,7 @@ export default function ApplyPage() {
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-xs font-semibold uppercase tracking-wider text-primary">
+                        <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                           LinkedIn URL
                         </label>
                         <Input
@@ -667,7 +686,7 @@ export default function ApplyPage() {
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-xs font-semibold uppercase tracking-wider text-primary">
+                        <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                           Portfolio URL
                         </label>
                         <Input
@@ -681,7 +700,7 @@ export default function ApplyPage() {
 
                     {/* CV Upload Zone */}
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold uppercase tracking-wider text-primary flex items-center justify-between gap-2">
+                      <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground flex items-center justify-between gap-2">
                         <span>
                           Upload CV / Resume{" "}
                           <span className="text-brand-strong">*</span>
@@ -714,15 +733,16 @@ export default function ApplyPage() {
                           <button
                             type="button"
                             onClick={() => setCvFile(null)}
-                            className="text-xs text-destructive font-semibold hover:underline cursor-pointer shrink-0"
+                            className="min-h-9 px-2 text-xs text-destructive font-semibold hover:underline cursor-pointer shrink-0"
                           >
                             Remove
                           </button>
                         </div>
                       ) : (
-                        <div
+                        <button
+                          type="button"
                           onClick={() => cvInputRef.current?.click()}
-                          className="border-2 border-dashed border-border hover:border-brand-strong/60 hover:bg-muted/40 rounded-xl p-6 text-center cursor-pointer transition-colors"
+                          className="w-full border-2 border-dashed border-border hover:border-brand-strong/60 hover:bg-muted/40 rounded-xl p-6 text-center cursor-pointer transition-colors"
                         >
                           <Upload className="size-6 mx-auto text-brand-strong" />
                           <p className="mt-2 text-sm font-medium text-foreground">
@@ -731,12 +751,12 @@ export default function ApplyPage() {
                           <p className="text-xs text-muted-foreground mt-0.5">
                             PDF or Word Document (Max 4MB)
                           </p>
-                        </div>
+                        </button>
                       )}
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold uppercase tracking-wider text-primary">
+                      <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                         Cover Letter / Statement of Interest (Optional)
                       </label>
                       <Textarea
@@ -746,7 +766,6 @@ export default function ApplyPage() {
                         onChange={(e) => setCoverLetter(e.target.value)}
                       />
                     </div>
-
                   </div>
                 </div>
 

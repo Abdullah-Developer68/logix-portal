@@ -5,7 +5,9 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { StatusBadge, type StatusTone } from "@/components/portal/status-badge";
 import type { PortalState, TaskStatus } from "@/lib/types";
 import {
   Users,
@@ -15,7 +17,17 @@ import {
   CheckCircle2,
   RotateCcw,
   XCircle,
+  Inbox,
+  ExternalLink,
 } from "lucide-react";
+
+const TASK_STATUS_TONES: Record<TaskStatus, StatusTone> = {
+  Assigned: "neutral",
+  Submitted: "warning",
+  "Needs Revision": "warning",
+  Approved: "brand",
+  Rejected: "danger",
+};
 
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
 
@@ -195,29 +207,29 @@ export function MentorDashboard({
     <div className="space-y-8">
       {/* Mentor KPI Header */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card inverted className="p-5">
-          <div className="flex items-center justify-between">
-            <span className="text-xs uppercase tracking-wider text-white/70">
-              Assigned Cohort Interns
+        <Card className="p-5">
+          <div className="flex items-center justify-between gap-2">
+            <span className="eyebrow">Assigned Cohort Interns</span>
+            <span className="flex size-8 items-center justify-center rounded-lg bg-accent text-brand-strong">
+              <Users className="size-4" />
             </span>
-            <Users className="size-4 text-brand" />
           </div>
-          <div className="text-3xl font-bold text-white mt-2">
+          <div className="text-3xl font-bold tracking-tight text-foreground mt-2">
             {activeInterns.length}
           </div>
-          <p className="text-xs text-white/60 mt-1">
+          <p className="text-xs text-muted-foreground mt-1">
             Supervised by {mentorName}
           </p>
         </Card>
 
         <Card className="p-5">
-          <div className="flex items-center justify-between">
-            <span className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
-              Pending Task Reviews
+          <div className="flex items-center justify-between gap-2">
+            <span className="eyebrow">Pending Task Reviews</span>
+            <span className="flex size-8 items-center justify-center rounded-lg bg-accent text-brand-strong">
+              <ClipboardCheck className="size-4" />
             </span>
-            <ClipboardCheck className="size-4 text-brand-strong" />
           </div>
-          <div className="text-3xl font-bold text-primary mt-2">
+          <div className="text-3xl font-bold tracking-tight text-brand-strong mt-2">
             {pendingReviews.length}
           </div>
           <p className="text-xs text-muted-foreground mt-1">
@@ -226,13 +238,13 @@ export function MentorDashboard({
         </Card>
 
         <Card className="p-5">
-          <div className="flex items-center justify-between">
-            <span className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
-              Completed Evaluations
+          <div className="flex items-center justify-between gap-2">
+            <span className="eyebrow">Completed Evaluations</span>
+            <span className="flex size-8 items-center justify-center rounded-lg bg-accent text-brand-strong">
+              <Award className="size-4" />
             </span>
-            <Award className="size-4 text-brand-strong" />
           </div>
-          <div className="text-3xl font-bold text-primary mt-2">
+          <div className="text-3xl font-bold tracking-tight text-foreground mt-2">
             {db.evaluations.filter((e) => e.completed).length}
           </div>
           <p className="text-xs text-muted-foreground mt-1">
@@ -242,23 +254,28 @@ export function MentorDashboard({
       </div>
 
       {/* Section 1: Pending Task Submissions & All Tasks Review */}
-      <Card className="p-5 sm:p-6 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
+      <Card className="p-5 sm:p-6 space-y-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <span className="eyebrow">TASK & PROGRESS TRACKING</span>
+            <span className="eyebrow">Task & Progress Tracking</span>
             <h3 className="text-lg font-bold text-primary mt-0.5">
               Review Intern Submissions & Deliverables
             </h3>
           </div>
-          <Badge variant="brand">
+          <Badge variant="brand" dot>
             {pendingReviews.length} Pending Review
           </Badge>
         </div>
 
         {db.tasks.length === 0 ? (
-          <div className="rounded-xl border border-border bg-muted/30 p-6 text-center text-xs sm:text-sm text-muted-foreground">
-            No tasks assigned yet. Use the form below to assign a task once
-            interns are active.
+          <div className="rounded-xl border border-dashed border-border bg-muted/30 px-6 py-10 text-center space-y-2">
+            <Inbox className="size-7 text-muted-foreground mx-auto" />
+            <p className="text-sm font-medium text-foreground">
+              No tasks assigned yet
+            </p>
+            <p className="text-xs text-muted-foreground max-w-md mx-auto">
+              Use the form below to assign a task once interns are active.
+            </p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -271,26 +288,22 @@ export function MentorDashboard({
                 >
                   <div className="space-y-1.5 max-w-2xl min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <Badge
-                        variant={
-                          task.status === "Approved"
-                            ? "brand"
-                            : task.status === "Submitted"
-                              ? "default"
-                              : "secondary"
-                        }
+                      <StatusBadge
+                        status={task.status}
+                        tone={TASK_STATUS_TONES[task.status]}
                         dot
-                      >
-                        {task.status}
-                      </Badge>
-                      <span className="text-xs font-bold text-primary">
-                        {task.internName} ({task.internId})
+                      />
+                      <span className="text-xs font-semibold text-foreground">
+                        {task.internName}{" "}
+                        <span className="font-mono text-muted-foreground">
+                          ({task.internId})
+                        </span>
                       </span>
                       <span className="text-xs text-muted-foreground">
                         · Due {task.deadline}
                       </span>
                     </div>
-                    <h4 className="text-sm sm:text-base font-bold text-primary break-words">
+                    <h4 className="text-sm sm:text-base font-semibold text-primary break-words">
                       {task.title}
                     </h4>
                     <p className="text-xs text-muted-foreground break-words">
@@ -303,16 +316,20 @@ export function MentorDashboard({
                           href={task.submissionLink}
                           target="_blank"
                           rel="noreferrer"
-                          className="underline"
+                          className="inline-flex items-center gap-1 underline hover:opacity-80"
                         >
                           {task.submissionLink}
+                          <ExternalLink className="size-3 shrink-0" />
                         </a>{" "}
                         {task.submissionNotes && `— "${task.submissionNotes}"`}
                       </div>
                     )}
                     {task.submissionFileName && (
                       <div className="text-xs text-muted-foreground">
-                        Submitted File: <strong>{task.submissionFileName}</strong>
+                        Submitted File:{" "}
+                        <strong className="text-foreground">
+                          {task.submissionFileName}
+                        </strong>
                       </div>
                     )}
                   </div>
@@ -329,7 +346,7 @@ export function MentorDashboard({
                           [task.id]: e.target.value,
                         }))
                       }
-                      className="h-9 text-xs sm:w-52"
+                      className="h-10 text-xs sm:w-52"
                     />
                     <div className="flex flex-wrap items-center gap-1.5">
                       <Button
@@ -338,7 +355,7 @@ export function MentorDashboard({
                         size="sm"
                         disabled={isReviewing}
                         onClick={() => void handleReviewTask(task.id, "Approved")}
-                        className="cursor-pointer font-semibold"
+                        className="min-h-10 sm:min-h-9 px-3 cursor-pointer font-semibold"
                       >
                         <CheckCircle2 className="size-3.5" />
                         Approve
@@ -351,7 +368,7 @@ export function MentorDashboard({
                         onClick={() =>
                           void handleReviewTask(task.id, "Needs Revision")
                         }
-                        className="cursor-pointer"
+                        className="min-h-10 sm:min-h-9 px-3 cursor-pointer"
                       >
                         <RotateCcw className="size-3.5" />
                         Revision
@@ -362,7 +379,7 @@ export function MentorDashboard({
                         size="sm"
                         disabled={isReviewing}
                         onClick={() => void handleReviewTask(task.id, "Rejected")}
-                        className="text-destructive hover:bg-destructive/10 cursor-pointer"
+                        className="min-h-10 sm:min-h-9 px-3 text-destructive hover:bg-destructive/10 cursor-pointer"
                       >
                         <XCircle className="size-3.5" />
                         Reject
@@ -386,16 +403,15 @@ export function MentorDashboard({
               Assign New Mentorship Task
             </h3>
           </div>
-          <form onSubmit={handleAssignTask} className="space-y-3.5">
-            <div className="space-y-1">
-              <label className="text-xs font-semibold uppercase text-primary">
+          <form onSubmit={handleAssignTask} className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Target Intern *
               </label>
-              <select
+              <Select
                 value={effectiveTaskInternId}
                 onChange={(e) => setTaskInternId(e.target.value)}
                 disabled={activeInterns.length === 0}
-                className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm disabled:opacity-60"
               >
                 {activeInterns.length === 0 && (
                   <option value="">No active interns available</option>
@@ -405,10 +421,10 @@ export function MentorDashboard({
                     {i.fullName} ({i.internId} · {i.fieldName})
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
-            <div className="space-y-1">
-              <label className="text-xs font-semibold uppercase text-primary">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Task Title *
               </label>
               <Input
@@ -419,8 +435,8 @@ export function MentorDashboard({
               />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="text-xs font-semibold uppercase text-primary">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Deadline *
                 </label>
                 <Input
@@ -430,27 +446,26 @@ export function MentorDashboard({
                   onChange={(e) => setTaskDeadline(e.target.value)}
                 />
               </div>
-              <div className="space-y-1">
-                <label className="text-xs font-semibold uppercase text-primary">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Priority
                 </label>
-                <select
+                <Select
                   value={taskPriority}
                   onChange={(e) =>
                     setTaskPriority(
                       e.target.value as "Low" | "Medium" | "High",
                     )
                   }
-                  className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
                 >
                   <option value="High">High Priority</option>
                   <option value="Medium">Medium Priority</option>
                   <option value="Low">Low Priority</option>
-                </select>
+                </Select>
               </div>
             </div>
-            <div className="space-y-1">
-              <label className="text-xs font-semibold uppercase text-primary">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Reference File (Optional · Max 4MB)
               </label>
               <Input
@@ -468,8 +483,8 @@ export function MentorDashboard({
                 <p className="text-xs text-destructive">{taskUploadError}</p>
               )}
             </div>
-            <div className="space-y-1">
-              <label className="text-xs font-semibold uppercase text-primary">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Detailed Instructions *
               </label>
               <Textarea
@@ -515,16 +530,15 @@ export function MentorDashboard({
             completed before an official certificate can be issued.
           </p>
 
-          <form onSubmit={handleEvaluationSubmit} className="space-y-3.5">
-            <div className="space-y-1">
-              <label className="text-xs font-semibold uppercase text-primary">
+          <form onSubmit={handleEvaluationSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Select Intern to Evaluate
               </label>
-              <select
+              <Select
                 value={effectiveEvalInternId}
                 onChange={(e) => setEvalInternId(e.target.value)}
                 disabled={activeInterns.length === 0}
-                className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm disabled:opacity-60"
               >
                 {activeInterns.length === 0 && (
                   <option value="">No active interns available</option>
@@ -534,12 +548,12 @@ export function MentorDashboard({
                     {i.fullName} ({i.internId} · {i.internshipStatus})
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="text-xs font-semibold uppercase text-primary">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Technical Skills ({techScore}/25)
                 </label>
                 <Input
@@ -550,8 +564,8 @@ export function MentorDashboard({
                   onChange={(e) => setTechScore(Number(e.target.value))}
                 />
               </div>
-              <div className="space-y-1">
-                <label className="text-xs font-semibold uppercase text-primary">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Punctuality ({puncScore}/25)
                 </label>
                 <Input
@@ -562,8 +576,8 @@ export function MentorDashboard({
                   onChange={(e) => setPuncScore(Number(e.target.value))}
                 />
               </div>
-              <div className="space-y-1">
-                <label className="text-xs font-semibold uppercase text-primary">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Communication ({commScore}/25)
                 </label>
                 <Input
@@ -574,8 +588,8 @@ export function MentorDashboard({
                   onChange={(e) => setCommScore(Number(e.target.value))}
                 />
               </div>
-              <div className="space-y-1">
-                <label className="text-xs font-semibold uppercase text-primary">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Teamwork ({teamScore}/25)
                 </label>
                 <Input
@@ -588,8 +602,8 @@ export function MentorDashboard({
               </div>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-xs font-semibold uppercase text-primary">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Final Mentor Remarks & Recommendation
               </label>
               <Textarea

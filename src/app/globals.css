@@ -2,7 +2,7 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Logix design system tokens (see /designs) */
+/* Logix design system tokens (matches public website) */
 :root {
   --radius: 0.625rem;
   --background: #ffffff;
@@ -24,6 +24,7 @@
   --input: #e2e8f0;
   --ring: #1fc8aa;
   --destructive: #e5484d;
+  color-scheme: light;
 }
 
 :root.dark,
@@ -48,6 +49,7 @@ html.dark,
   --input: #1e293b;
   --ring: #22d3b0;
   --destructive: #f87171;
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -150,7 +152,7 @@ html.dark,
   .container-x {
     margin-inline: auto;
     width: 100%;
-    max-width: 1280px;
+    max-width: 1200px;
     padding-inline: 16px;
   }
   @media (min-width: 640px) {
@@ -180,35 +182,91 @@ html.dark,
   }
 }
 
-/* Lightweight CSS reveal animations (replaces framer-motion) */
-.reveal-fade {
-  opacity: 0;
-  transform: translate3d(var(--reveal-x, 0px), var(--reveal-y, 16px), 0);
-  transition:
-    opacity var(--reveal-duration, 480ms) cubic-bezier(0.21, 0.47, 0.32, 0.98) var(--reveal-delay, 0ms),
-    transform var(--reveal-duration, 480ms) cubic-bezier(0.21, 0.47, 0.32, 0.98) var(--reveal-delay, 0ms);
+/* Terminal blinking cursor */
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+.animate-cursor-blink {
+  animation: cursor-blink 0.9s steps(2, start) infinite;
 }
 
-.reveal-fade[data-visible="true"] {
+/* Entrance & scroll-reveal animations (matches website) */
+@keyframes logix-fade-up {
+  from {
+    opacity: 0;
+    transform: translate3d(0, var(--fade-y, 20px), 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.animate-fade-up {
+  animation: logix-fade-up var(--fade-duration, 0.5s) var(--fade-ease, cubic-bezier(0.21, 0.47, 0.32, 0.98)) var(--fade-delay, 0s) both;
+}
+
+@keyframes badge-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 4px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.animate-badge-enter {
+  animation: badge-enter 0.25s ease-out both;
+}
+
+.reveal-item {
+  opacity: 0;
+  transform: translate3d(var(--reveal-x, 0px), var(--reveal-y, 24px), 0);
+  transition:
+    opacity var(--reveal-duration, 0.5s) cubic-bezier(0.21, 0.47, 0.32, 0.98) var(--reveal-delay, 0s),
+    transform var(--reveal-duration, 0.5s) cubic-bezier(0.21, 0.47, 0.32, 0.98) var(--reveal-delay, 0s);
+}
+
+.reveal-item[data-visible="true"] {
   opacity: 1;
   transform: translate3d(0, 0, 0);
 }
 
-.reveal-card {
-  transition: transform 200ms ease-out;
+.stagger-item {
+  opacity: 0;
+  transform: translate3d(0, var(--stagger-y, 20px), 0);
+  transition:
+    opacity 0.5s cubic-bezier(0.21, 0.47, 0.32, 0.98),
+    transform 0.5s cubic-bezier(0.21, 0.47, 0.32, 0.98);
 }
 
-.reveal-card:hover {
-  transform: translateY(-4px);
+.stagger-container[data-visible="true"] > .stagger-item {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
 }
+
+.stagger-container[data-visible="true"] > .stagger-item:nth-child(1) { transition-delay: calc(var(--stagger-base, 0.1s) + 0 * var(--stagger-step, 0.1s)); }
+.stagger-container[data-visible="true"] > .stagger-item:nth-child(2) { transition-delay: calc(var(--stagger-base, 0.1s) + 1 * var(--stagger-step, 0.1s)); }
+.stagger-container[data-visible="true"] > .stagger-item:nth-child(3) { transition-delay: calc(var(--stagger-base, 0.1s) + 2 * var(--stagger-step, 0.1s)); }
+.stagger-container[data-visible="true"] > .stagger-item:nth-child(4) { transition-delay: calc(var(--stagger-base, 0.1s) + 3 * var(--stagger-step, 0.1s)); }
+.stagger-container[data-visible="true"] > .stagger-item:nth-child(5) { transition-delay: calc(var(--stagger-base, 0.1s) + 4 * var(--stagger-step, 0.1s)); }
+.stagger-container[data-visible="true"] > .stagger-item:nth-child(6) { transition-delay: calc(var(--stagger-base, 0.1s) + 5 * var(--stagger-step, 0.1s)); }
+.stagger-container[data-visible="true"] > .stagger-item:nth-child(7) { transition-delay: calc(var(--stagger-base, 0.1s) + 6 * var(--stagger-step, 0.1s)); }
+.stagger-container[data-visible="true"] > .stagger-item:nth-child(8) { transition-delay: calc(var(--stagger-base, 0.1s) + 7 * var(--stagger-step, 0.1s)); }
 
 @media (prefers-reduced-motion: reduce) {
-  .reveal-fade {
+  .animate-fade-up,
+  .animate-badge-enter,
+  .animate-cursor-blink {
+    animation: none !important;
+  }
+  .reveal-item,
+  .stagger-item {
     opacity: 1 !important;
     transform: none !important;
     transition: none !important;
-  }
-  .reveal-card:hover {
-    transform: none !important;
   }
 }

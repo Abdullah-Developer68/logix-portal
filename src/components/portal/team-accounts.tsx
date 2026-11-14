@@ -5,7 +5,9 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { CredentialNotice } from "@/components/portal/credential-notice";
+import { RoleBadge, StatusBadge } from "@/components/portal/status-badge";
 import type { PublicUser, UserRole } from "@/lib/types";
 import {
   UserPlus,
@@ -198,40 +200,39 @@ export function TeamAccountsTab({
         <Card className="p-5 sm:p-6 space-y-4">
           <div className="flex items-center gap-2">
             <UserPlus className="size-4 text-brand-strong" />
-            <h3 className="text-base font-bold text-primary">
+            <h3 className="text-base font-semibold text-primary">
               Create Staff Account
             </h3>
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground leading-5">
             Provision a mentor or administrator account with an auto-generated
             temporary password.
           </p>
 
-          <form onSubmit={handleCreateStaff} className="space-y-3">
-            <div className="space-y-1">
+          <form onSubmit={handleCreateStaff} className="space-y-3.5">
+            <div className="space-y-1.5">
               <label
                 htmlFor="staff-role"
-                className="text-xs font-semibold uppercase tracking-wider text-primary"
+                className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
               >
                 Account Role *
               </label>
-              <select
+              <Select
                 id="staff-role"
                 value={staffRole}
                 onChange={(e) =>
                   setStaffRole(e.target.value as "mentor" | "admin")
                 }
-                className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
               >
                 <option value="mentor">Mentor / Supervisor</option>
                 <option value="admin">Administrator</option>
-              </select>
+              </Select>
             </div>
 
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <label
                 htmlFor="staff-name"
-                className="text-xs font-semibold uppercase tracking-wider text-primary"
+                className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
               >
                 Full Name *
               </label>
@@ -244,10 +245,10 @@ export function TeamAccountsTab({
               />
             </div>
 
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <label
                 htmlFor="staff-email"
-                className="text-xs font-semibold uppercase tracking-wider text-primary"
+                className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
               >
                 Work Email *
               </label>
@@ -263,10 +264,10 @@ export function TeamAccountsTab({
 
             {staffRole === "mentor" && (
               <>
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <label
                     htmlFor="staff-title"
-                    className="text-xs font-semibold uppercase tracking-wider text-primary"
+                    className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
                   >
                     Job Title (Optional)
                   </label>
@@ -277,10 +278,10 @@ export function TeamAccountsTab({
                     onChange={(e) => setStaffTitle(e.target.value)}
                   />
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <label
                     htmlFor="staff-dept"
-                    className="text-xs font-semibold uppercase tracking-wider text-primary"
+                    className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
                   >
                     Department (Optional)
                   </label>
@@ -310,10 +311,10 @@ export function TeamAccountsTab({
 
         {/* User Directory */}
         <Card className="lg:col-span-2 p-5 sm:p-6 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <Users className="size-4 text-brand-strong" />
-              <h3 className="text-base sm:text-lg font-bold text-primary">
+              <h3 className="text-base sm:text-lg font-semibold text-primary">
                 Portal User Accounts ({users.length})
               </h3>
             </div>
@@ -323,9 +324,9 @@ export function TeamAccountsTab({
                   key={r}
                   type="button"
                   onClick={() => setRoleFilter(r)}
-                  className={`rounded-full px-2.5 py-1 text-xs font-semibold capitalize cursor-pointer transition-colors ${
+                  className={`min-h-9 rounded-full px-3 py-1.5 text-xs font-medium capitalize cursor-pointer transition-colors ${
                     roleFilter === r
-                      ? "bg-primary text-primary-foreground"
+                      ? "bg-brand text-brand-foreground font-semibold"
                       : "border border-border bg-muted/40 text-muted-foreground hover:text-foreground"
                   }`}
                 >
@@ -347,8 +348,11 @@ export function TeamAccountsTab({
           </div>
 
           {filteredUsers.length === 0 ? (
-            <div className="rounded-xl border border-border bg-muted/30 p-8 text-center text-xs sm:text-sm text-muted-foreground">
-              No portal user accounts match your filter.
+            <div className="rounded-xl border border-border bg-muted/30 p-8 text-center space-y-2">
+              <Users className="size-7 mx-auto text-muted-foreground opacity-60" />
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                No portal user accounts match your filter.
+              </p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -362,13 +366,22 @@ export function TeamAccountsTab({
                   confirmAction?.userId === user.id &&
                   confirmAction.type === "toggle_disable";
 
+                const roleIcon =
+                  user.role === "admin" ? (
+                    <Shield className="size-3" />
+                  ) : user.role === "mentor" ? (
+                    <UserCheck className="size-3" />
+                  ) : (
+                    <GraduationCap className="size-3" />
+                  );
+
                 return (
                   <div
                     key={user.id}
                     className={`rounded-xl border p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
                       user.disabled
                         ? "border-destructive/30 bg-destructive/5 opacity-85"
-                        : "border-border bg-muted/20"
+                        : "border-border bg-muted/30"
                     }`}
                   >
                     <div className="space-y-1 min-w-0">
@@ -377,40 +390,13 @@ export function TeamAccountsTab({
                           {user.name}
                         </strong>
                         {isSelf && <Badge variant="outline">You</Badge>}
-                        <Badge
-                          variant={
-                            user.role === "admin"
-                              ? "default"
-                              : user.role === "mentor"
-                                ? "brand"
-                                : "secondary"
-                          }
-                        >
-                          {user.role === "admin" && (
-                            <Shield className="size-3" />
-                          )}
-                          {user.role === "mentor" && (
-                            <UserCheck className="size-3" />
-                          )}
-                          {user.role === "intern" && (
-                            <GraduationCap className="size-3" />
-                          )}
-                          <span className="capitalize">{user.role}</span>
-                        </Badge>
-
-                        <Badge
-                          variant={user.disabled ? "outline" : "brand"}
-                          className={
-                            user.disabled
-                              ? "border-destructive/40 text-destructive"
-                              : ""
-                          }
-                        >
-                          {user.disabled ? "Disabled" : "Active"}
-                        </Badge>
-
+                        <RoleBadge role={user.role} icon={roleIcon} />
+                        <StatusBadge
+                          status={user.disabled ? "Disabled" : "Active"}
+                          tone={user.disabled ? "danger" : "brand"}
+                        />
                         {user.mustChangePassword && (
-                          <Badge variant="outline">Temp Password</Badge>
+                          <StatusBadge status="Temp Password" tone="warning" />
                         )}
                       </div>
 
@@ -438,7 +424,7 @@ export function TeamAccountsTab({
                             size="sm"
                             disabled={isPending}
                             onClick={() => void handleResetPassword(user)}
-                            className="h-7 px-2 text-xs cursor-pointer"
+                            className="h-8 px-2.5 text-xs cursor-pointer"
                           >
                             Confirm
                           </Button>
@@ -448,7 +434,7 @@ export function TeamAccountsTab({
                             size="sm"
                             disabled={isPending}
                             onClick={() => setConfirmAction(null)}
-                            className="h-7 px-2 text-xs cursor-pointer"
+                            className="h-8 px-2.5 text-xs cursor-pointer"
                           >
                             Cancel
                           </Button>
@@ -465,7 +451,7 @@ export function TeamAccountsTab({
                               type: "reset",
                             })
                           }
-                          className="cursor-pointer"
+                          className="h-9 px-3 cursor-pointer"
                         >
                           <KeyRound className="size-3.5" />
                           Reset Password
@@ -484,7 +470,7 @@ export function TeamAccountsTab({
                               size="sm"
                               disabled={isPending}
                               onClick={() => void handleToggleDisable(user)}
-                              className="h-7 px-2 text-xs cursor-pointer"
+                              className="h-8 px-2.5 text-xs cursor-pointer"
                             >
                               Confirm
                             </Button>
@@ -494,7 +480,7 @@ export function TeamAccountsTab({
                               size="sm"
                               disabled={isPending}
                               onClick={() => setConfirmAction(null)}
-                              className="h-7 px-2 text-xs cursor-pointer"
+                              className="h-8 px-2.5 text-xs cursor-pointer"
                             >
                               Cancel
                             </Button>
@@ -511,7 +497,7 @@ export function TeamAccountsTab({
                                 type: "toggle_disable",
                               })
                             }
-                            className={`cursor-pointer ${
+                            className={`h-9 px-3 cursor-pointer ${
                               user.disabled
                                 ? "text-brand-strong"
                                 : "text-destructive hover:bg-destructive/10"

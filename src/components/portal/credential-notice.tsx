@@ -37,10 +37,10 @@ export function CredentialNotice({
     <div
       role="region"
       aria-label={title}
-      className="rounded-xl border-2 border-brand/50 bg-accent/60 p-4 space-y-3 text-xs sm:text-sm"
+      className="rounded-xl border border-brand/40 bg-accent/50 p-4 sm:p-5 space-y-3 text-xs sm:text-sm"
     >
       <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2 font-bold text-primary">
+        <div className="flex items-center gap-2 font-semibold text-primary">
           <KeyRound className="size-4 text-brand-strong shrink-0" />
           <span>{title}</span>
         </div>
@@ -49,7 +49,7 @@ export function CredentialNotice({
             type="button"
             onClick={onDismiss}
             aria-label="Dismiss credential notice"
-            className="rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
+            className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
           >
             <X className="size-4" />
           </button>
@@ -60,7 +60,7 @@ export function CredentialNotice({
         <p className="text-xs text-foreground font-medium">{extraInfo}</p>
       )}
 
-      <div className="rounded-lg border border-border bg-card p-3 space-y-2 font-mono text-xs">
+      <div className="rounded-lg border border-border bg-card p-3.5 space-y-2 font-mono text-xs">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-muted-foreground">Login Email:</span>
           <span className="font-semibold text-foreground break-all">
@@ -70,13 +70,13 @@ export function CredentialNotice({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-muted-foreground">Temporary Password:</span>
           <div className="flex items-center gap-2">
-            <code className="rounded bg-muted px-2 py-0.5 font-bold text-brand-strong select-all break-all">
+            <code className="rounded bg-muted px-2 py-1 font-bold text-brand-strong select-all break-all">
               {temporaryPassword}
             </code>
             <button
               type="button"
               onClick={() => handleCopy(temporaryPassword, "password")}
-              className="inline-flex items-center gap-1 rounded border border-border px-2 py-0.5 text-[11px] font-sans font-semibold text-foreground hover:bg-muted cursor-pointer"
+              className="inline-flex min-h-8 items-center gap-1 rounded-md border border-input bg-background px-2.5 py-1 text-[11px] font-sans font-semibold text-foreground hover:bg-muted cursor-pointer"
               aria-label="Copy temporary password"
             >
               {copiedField === "password" ? (
@@ -95,8 +95,8 @@ export function CredentialNotice({
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
-        <div className="flex items-start gap-2 text-xs text-amber-800 dark:text-amber-300">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+        <div className="flex items-start gap-2 text-xs text-amber-700 dark:text-amber-300">
           <AlertTriangle className="size-4 shrink-0 mt-0.5" />
           <span>
             <strong>Shown only once:</strong> Copy or save this password now —
@@ -110,7 +110,7 @@ export function CredentialNotice({
           variant="brand"
           size="sm"
           onClick={() => handleCopy(fullText, "all")}
-          className="shrink-0 cursor-pointer font-semibold"
+          className="h-9 px-3 shrink-0 cursor-pointer font-semibold"
         >
           {copiedField === "all" ? (
             <>

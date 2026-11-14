@@ -7,6 +7,7 @@ import { AdminDashboard } from "@/components/portal/admin-dashboard";
 import { MentorDashboard } from "@/components/portal/mentor-dashboard";
 import { InternDashboard } from "@/components/portal/intern-dashboard";
 import { ForcePasswordDialog } from "@/components/portal/force-password-dialog";
+import { RoleBadge } from "@/components/portal/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { PortalState } from "@/lib/types";
@@ -19,6 +20,7 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
+  X,
 } from "lucide-react";
 
 const SESSION_TIMEOUT_SECONDS = 30 * 60; // 30 minutes inactivity timeout
@@ -270,12 +272,12 @@ export default function PortalWorkspacePage() {
   if (loading) {
     return (
       <div className="flex min-h-screen flex-col">
-        <PortalHeader />
-        <main className="flex-1 flex items-center justify-center bg-muted">
-          <div className="text-center space-y-2 px-4">
+        <PortalHeader hideAuthCta />
+        <main className="flex-1 flex items-center justify-center bg-muted/40 dark:bg-background">
+          <div className="text-center space-y-3 px-4">
             <div className="size-8 rounded-full border-2 border-brand border-t-transparent animate-spin mx-auto" />
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Loading Logix Internship Management Portal...
+            <p className="eyebrow text-muted-foreground">
+              Loading Logix Internship Portal...
             </p>
           </div>
         </main>
@@ -288,14 +290,14 @@ export default function PortalWorkspacePage() {
     return (
       <div className="flex min-h-screen flex-col">
         <PortalHeader />
-        <main className="flex-1 flex items-center justify-center bg-muted px-4">
-          <div className="max-w-md w-full rounded-2xl border border-border bg-card p-6 text-center space-y-4 shadow-sm">
+        <main className="flex-1 flex items-center justify-center bg-muted/40 dark:bg-background px-4">
+          <div className="max-w-md w-full rounded-xl border border-border bg-card p-6 sm:p-8 text-center space-y-4 shadow-sm">
             <AlertCircle className="size-8 text-destructive mx-auto" />
-            <h1 className="text-lg font-bold text-primary">
+            <h1 className="text-xl font-bold text-primary">
               Could Not Load Portal
             </h1>
-            <p className="text-xs text-muted-foreground">{loadError}</p>
-            <div className="flex flex-wrap justify-center gap-2">
+            <p className="text-xs sm:text-sm text-muted-foreground">{loadError}</p>
+            <div className="flex flex-wrap justify-center gap-2.5">
               <Button
                 type="button"
                 variant="brand"
@@ -342,71 +344,80 @@ export default function PortalWorkspacePage() {
     return `${m}:${s}`;
   };
 
+  const roleIcon =
+    currentUser.role === "admin" ? (
+      <Shield className="size-3.5" />
+    ) : currentUser.role === "mentor" ? (
+      <UserCheck className="size-3.5" />
+    ) : (
+      <GraduationCap className="size-3.5" />
+    );
+
+  const workspaceMeta =
+    currentUser.role === "admin"
+      ? {
+          eyebrow: "ADMINISTRATION",
+          titlePrefix: "Operations & Cohort",
+          titleAccent: "Workspace",
+          lead: `${currentUser.name} (${currentUser.email}) — Manage applications, cohorts, evaluations, team accounts, and certificates.`,
+        }
+      : currentUser.role === "mentor"
+        ? {
+            eyebrow: "MENTORSHIP",
+            titlePrefix: "Supervisor Review",
+            titleAccent: "Workspace",
+            lead: `${currentUser.name} (${currentUser.email}) — Assign cohort tasks, review submissions, and evaluate interns.`,
+          }
+        : {
+            eyebrow: "INTERN WORKSPACE",
+            titlePrefix: "Student Learning",
+            titleAccent: "Workspace",
+            lead: `${currentUser.name} (${currentUser.email}) — Track tasks, attendance, evaluations, and verified certificates.`,
+          };
+
   return (
     <div className="flex min-h-screen flex-col">
-      <PortalHeader />
+      <PortalHeader
+        signedIn
+        user={{
+          name: currentUser.name,
+          email: currentUser.email,
+          role: currentUser.role,
+        }}
+        onLogout={() => void handleLogout()}
+      />
 
-      {/* Workspace Control Subheader */}
-      <div className="no-print border-b border-border bg-card">
-        <div className="container-x py-3 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          {/* Active Authenticated Role & Identity */}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Role:
-              </span>
-              <span
-                className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-bold uppercase tracking-wider ${
-                  currentUser.role === "admin"
-                    ? "bg-brand text-brand-foreground shadow-xs"
-                    : currentUser.role === "mentor"
-                      ? "bg-purple-600 text-white shadow-xs"
-                      : "bg-emerald-600 text-white shadow-xs"
-                }`}
-              >
-                {currentUser.role === "admin" && <Shield className="size-3.5" />}
-                {currentUser.role === "mentor" && (
-                  <UserCheck className="size-3.5" />
-                )}
-                {currentUser.role === "intern" && (
-                  <GraduationCap className="size-3.5" />
-                )}
-                {currentUser.role}
-              </span>
-            </div>
-
-            <div className="text-xs text-foreground font-medium flex flex-wrap items-center gap-1.5 sm:border-l sm:border-border sm:pl-3 min-w-0">
-              <span className="font-semibold break-words">{currentUser.name}</span>
-              <span className="text-muted-foreground break-all">
-                ({currentUser.email})
-              </span>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => void handleLogout()}
-              className="text-xs text-brand-strong hover:underline font-medium cursor-pointer"
-            >
-              Switch Account
-            </button>
-
-            {currentUser.role === "intern" && (
-              <span className="text-xs font-medium text-muted-foreground sm:border-l sm:border-border sm:pl-3">
-                Intern ID:{" "}
-                <span className="font-mono font-semibold text-foreground">
+      {/* Workspace Page Header Band (matches website typography & container-x) */}
+      <section className="no-print border-b border-border bg-background py-6 sm:py-8">
+        <div className="container-x flex flex-col lg:flex-row lg:items-end justify-between gap-5">
+          <div className="min-w-0 space-y-2">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="eyebrow">{workspaceMeta.eyebrow}</span>
+              <RoleBadge role={currentUser.role} icon={roleIcon} />
+              {currentUser.role === "intern" && (
+                <span className="inline-flex items-center rounded-full border border-border bg-muted px-2.5 py-0.5 text-xs font-mono font-medium text-foreground">
                   {activeInternRecord?.internId ||
                     currentUser.internRecordId ||
                     "Unassigned"}
                 </span>
-              </span>
-            )}
+              )}
+            </div>
+
+            <h2 className="text-2xl sm:text-3xl lg:text-[36px] lg:leading-[44px] font-bold tracking-tight text-primary break-words">
+              {workspaceMeta.titlePrefix}{" "}
+              <span className="text-brand-strong">{workspaceMeta.titleAccent}</span>
+            </h2>
+
+            <p className="lead text-sm sm:text-base max-w-2xl break-words">
+              {workspaceMeta.lead}
+            </p>
           </div>
 
-          {/* Right Controls: Session Timer, Notification Bell, Logout */}
-          <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 sm:gap-3">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted px-2.5 py-1 rounded-lg border border-border">
+          {/* Session Timer, Notification Center, Switch Account */}
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            <div className="h-10 inline-flex items-center gap-1.5 text-xs text-muted-foreground bg-muted px-3 rounded-lg border border-border">
               <Clock className="size-3.5 text-brand-strong shrink-0" />
-              <span className="hidden sm:inline">Session Timeout:</span>
+              <span className="hidden sm:inline">Session:</span>
               <span className="font-mono font-semibold text-foreground">
                 {formatTimer(secondsLeft)}
               </span>
@@ -418,12 +429,12 @@ export default function PortalWorkspacePage() {
                 type="button"
                 onClick={() => setNotifOpen(!notifOpen)}
                 aria-expanded={notifOpen}
-                className="relative inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted cursor-pointer"
+                className="relative h-10 inline-flex items-center gap-2 rounded-lg border border-input bg-background px-3.5 text-xs font-medium text-foreground hover:bg-muted cursor-pointer transition-colors"
               >
-                <Bell className="size-3.5 text-brand-strong" />
+                <Bell className="size-4 text-brand-strong" />
                 <span>Notifications</span>
                 {unreadNotifs > 0 && (
-                  <span className="inline-flex size-4 items-center justify-center rounded-full bg-brand text-[10px] font-bold text-brand-foreground">
+                  <span className="inline-flex min-w-5 h-5 px-1 items-center justify-center rounded-full bg-brand text-[10px] font-bold text-brand-foreground">
                     {unreadNotifs}
                   </span>
                 )}
@@ -432,7 +443,7 @@ export default function PortalWorkspacePage() {
               {notifOpen && (
                 <div className="absolute right-0 mt-2 w-[min(calc(100vw-2rem),24rem)] rounded-xl border border-border bg-card shadow-2xl p-4 z-50 space-y-3">
                   <div className="flex items-center justify-between gap-2 border-b border-border pb-2">
-                    <span className="text-xs font-bold uppercase tracking-wider text-primary">
+                    <span className="eyebrow text-primary">
                       Notifications
                     </span>
                     <div className="flex items-center gap-2">
@@ -444,7 +455,7 @@ export default function PortalWorkspacePage() {
                               action: "mark_notifications_read",
                             })
                           }
-                          className="text-[11px] font-semibold text-brand-strong hover:underline cursor-pointer"
+                          className="min-h-8 px-1.5 text-[11px] font-semibold text-brand-strong hover:underline cursor-pointer"
                         >
                           Mark all read
                         </button>
@@ -453,9 +464,9 @@ export default function PortalWorkspacePage() {
                         type="button"
                         onClick={() => setNotifOpen(false)}
                         aria-label="Close notifications"
-                        className="text-xs text-muted-foreground hover:text-foreground cursor-pointer px-1"
+                        className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
                       >
-                        ✕
+                        <X className="size-4" />
                       </button>
                     </div>
                   </div>
@@ -468,9 +479,9 @@ export default function PortalWorkspacePage() {
                       db.notifications.slice(0, 15).map((n) => (
                         <div
                           key={n.id}
-                          className={`rounded-lg border p-2.5 text-xs ${
+                          className={`rounded-lg border p-3 text-xs ${
                             n.read
-                              ? "border-border bg-muted/20"
+                              ? "border-border bg-muted/30"
                               : "border-brand/40 bg-accent/40"
                           }`}
                         >
@@ -482,7 +493,7 @@ export default function PortalWorkspacePage() {
                               {n.category}
                             </Badge>
                           </div>
-                          <p className="text-muted-foreground mt-1 break-words">
+                          <p className="text-muted-foreground mt-1 break-words leading-5">
                             {n.message}
                           </p>
                         </div>
@@ -496,27 +507,27 @@ export default function PortalWorkspacePage() {
             <Button
               type="button"
               variant="outline"
-              size="sm"
+              size="default"
               onClick={() => void handleLogout()}
               className="cursor-pointer"
             >
               <LogOut className="size-3.5" />
-              Logout
+              <span>Switch Account</span>
             </Button>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Main Role Workspace */}
-      <main className="flex-1 bg-muted py-6 sm:py-10">
+      <main className="flex-1 bg-muted/40 dark:bg-background py-6 sm:py-10">
         <div className="container-x space-y-6">
           {toast && (
             <div
               role="status"
               className={`rounded-xl border px-4 py-3 text-xs sm:text-sm flex items-center justify-between gap-3 shadow-sm ${
                 toast.type === "success"
-                  ? "border-brand/50 bg-accent text-brand-strong"
-                  : "border-destructive/50 bg-destructive/10 text-destructive"
+                  ? "border-brand/40 bg-accent text-brand-strong"
+                  : "border-destructive/40 bg-destructive/10 text-destructive"
               }`}
             >
               <div className="flex items-center gap-2 font-medium min-w-0">
@@ -531,9 +542,9 @@ export default function PortalWorkspacePage() {
                 type="button"
                 onClick={() => showToast(null)}
                 aria-label="Dismiss notification"
-                className="text-xs font-bold cursor-pointer shrink-0"
+                className="inline-flex size-8 items-center justify-center rounded-md hover:bg-background/40 cursor-pointer shrink-0"
               >
-                ✕
+                <X className="size-4" />
               </button>
             </div>
           )}
@@ -574,8 +585,8 @@ export default function PortalWorkspacePage() {
               )}
 
               {currentUser.role === "intern" && !activeInternRecord && (
-                <div className="rounded-2xl border border-border bg-card p-6 sm:p-8 text-center space-y-3 max-w-lg mx-auto">
-                  <AlertCircle className="size-8 text-amber-500 mx-auto" />
+                <div className="rounded-xl border border-border bg-card p-6 sm:p-8 text-center space-y-3 max-w-lg mx-auto">
+                  <AlertCircle className="size-8 text-amber-600 dark:text-amber-400 mx-auto" />
                   <h2 className="text-lg font-bold text-primary">
                     Intern Profile Not Linked
                   </h2>
