@@ -19,6 +19,9 @@ export const metadata: Metadata = {
   title: "Logix Internship Portal",
   description:
     "Manage Logix internship cohorts, mentorship tasks, attendance, evaluations, and verified certificates.",
+  // Private workspace: keep it out of search results so it never competes
+  // with logixofficial.site.
+  robots: { index: false, follow: false, googleBot: { index: false, follow: false } },
 };
 
 export const viewport: Viewport = {

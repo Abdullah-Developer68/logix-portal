@@ -21,6 +21,7 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: cspDirectives.join("; "),
   },
+  { key: "X-Robots-Tag", value: "noindex, nofollow" },
   {
     key: "X-Content-Type-Options",
     value: "nosniff",
